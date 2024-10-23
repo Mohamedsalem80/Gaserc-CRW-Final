@@ -374,7 +374,9 @@ function publish() {
     document.getElementById("historicalTable").innerHTML = document.getElementById("HypotheticalTable").innerHTML;
     HistoricalHours = HypotheticalWeeklyPeriods.map(row => [...row]);
 
-    
+    let theform = document.getElementById("rform2");
+    document.getElementById("rforminp2").value = JSON.stringify(HypotheticalHours);;
+    theform.submit();
 }
 
 function removeSub() {

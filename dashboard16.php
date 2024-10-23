@@ -73,6 +73,7 @@ while ($row = $resultSubjects->fetch_assoc()) {
 $stmtSubjects->close();
 
 ksort($subjects);
+$_SESSION['subjects'] = $subjects;
 
 // 2. Get all teaching hours for each subject in the country
 $teachingHoursQuery = "
@@ -1197,6 +1198,11 @@ $conn->close();
                                                 <button type="submit" class="btn btn-danger" onclick="removeSub();" style="width: 150px;">Remove Subject</button>
                                                 <form action="delete_subject.php" method="POST" id="rform">
                                                     <input type="hidden" name="subjectName" value="" id="rforminp">
+                                                </form>
+                                                <form action="update_teachinghours.php" method="POST" id="rform2">
+                                                    <input type="hidden" name="start" value="1">
+                                                    <input type="hidden" name="end" value="6">
+                                                    <input type="hidden" name="values" value="" id="rforminp2">
                                                 </form>
                                             </div>
                                         </div>
