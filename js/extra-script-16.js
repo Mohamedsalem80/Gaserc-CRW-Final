@@ -456,12 +456,44 @@ updateChanges();
 getIncrementPeriodsPerClick();
 
 function downloadPDF2() {
-    const element = document.getElementById("printable");
-    var options = {
-        margin: 0.01,
-        filename: `crw-tables_${Math.floor(Math.random() * 10000)}.pdf`,
-        html2canvas: { scale: 4 },
-        jsPDF: { unit: 'in', format: 'a3', orientation: 'landscape' }
-    };
-    html2pdf().from(element).set(options).save();
+    let mainTable = document.querySelectorAll("#historicalTable tbody tr");
+    let mainMatrix = [];
+    let subjects = [];
+    
+    mainTable.forEach(function(row) {
+        let rowData = [];
+        // Extract subject name
+        let subject = row.querySelector(".subname").innerText.trim();
+        subjects.push(subject);
+
+        // Extract all values (td elements with class 'numVal' and 'numValt')
+        row.querySelectorAll("td.numVal, td.numValt").forEach(function(cell) {
+            rowData.push(cell.innerText.trim());
+        });
+
+        mainMatrix.push(rowData.join(','));  // Join values in a comma-separated row
+    });
+
+    // Collect data from the "Under Planning" table
+    let planningTable = document.querySelectorAll("#HypotheticalTable tbody tr");
+    let planningMatrix = [];
+    
+    planningTable.forEach(function(row) {
+        let rowData = [];
+
+        // Extract all values (td elements with class 'numVal' and 'numValt')
+        row.querySelectorAll("td.numVal, td.numValt").forEach(function(cell) {
+            rowData.push(cell.innerText.trim());
+        });
+
+        planningMatrix.push(rowData.join(','));  // Join values in a comma-separated row
+    });
+
+    // Inject data into the hidden form fields
+    document.getElementById("subjectsField").value = subjects.join(',');
+    document.getElementById("mainMatrixField").value = mainMatrix.join('\n');  // Line breaks between rows
+    document.getElementById("planningMatrixField").value = planningMatrix.join('\n');
+
+    // Submit the form
+    document.getElementById("pdfForm").submit();
 }

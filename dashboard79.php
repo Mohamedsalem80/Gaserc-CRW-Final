@@ -1,3 +1,238 @@
+<?php
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "gaserc";
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+session_start();
+
+if (isset($_GET['country'])) {
+    $_SESSION['country'] = $_GET['country'];
+}
+
+if (isset($_GET['job'])) {
+    $_SESSION['job'] = $_GET['job'];
+}
+
+if (isset($_GET['grade'])) {
+    $_SESSION['grade'] = $_GET['grade'];
+}
+
+if (isset($_GET['year'])) {
+    $_SESSION['year'] = $_GET['year'];
+}
+
+if (isset($_GET['subject'])) {
+    $_SESSION['subject'] = $_GET['subject'];
+}
+
+if (isset($_GET['country'])) {
+    $_SESSION['country'] = $_GET['country'];
+}
+
+$country = $_SESSION['country'];
+
+$countryIDQuery = "SELECT CountryID FROM Countries WHERE Country = ?";
+$stmtCountryID = $conn->prepare($countryIDQuery);
+$stmtCountryID->bind_param("s", $country);
+$stmtCountryID->execute();
+$stmtCountryID->bind_result($countryID);
+$stmtCountryID->fetch();
+$stmtCountryID->close();
+
+// 1. Get all subjects for the specific country
+$subjectsQuery = "
+    SELECT 
+        s.SubjectID, 
+        s.Subject
+    FROM 
+        Subjects s
+    JOIN 
+        TeachingHours th ON s.SubjectID = th.SubjectID
+    WHERE 
+        th.CountryID = ?;
+";
+
+$_SESSION['countryID'] = $countryID;
+
+$stmtSubjects = $conn->prepare($subjectsQuery);
+$stmtSubjects->bind_param("i", $countryID);
+$stmtSubjects->execute();
+$resultSubjects = $stmtSubjects->get_result();
+
+$subjects = [];
+while ($row = $resultSubjects->fetch_assoc()) {
+    $subjects[$row['SubjectID']] = $row['Subject'];
+}
+$stmtSubjects->close();
+
+ksort($subjects);
+$_SESSION['subjects'] = $subjects;
+
+// 2. Get all teaching hours for each subject in the country
+$teachingHoursQuery = "
+    SELECT 
+        th.SubjectID, 
+        th.GradeID, 
+        th.AnnualHours
+    FROM 
+        TeachingHours th
+    WHERE 
+        th.CountryID = ?;
+";
+
+$maximumHoursQuery = "
+    SELECT 
+        cd.Total, 
+        cd.no_weeks, 
+        cd.minutes,
+        cd.Grade_1,
+        cd.Grade_2,
+        cd.Grade_3,
+        cd.Grade_4,
+        cd.Grade_5,
+        cd.Grade_6,
+        cd.Grade_7,
+        cd.Grade_8,
+        cd.Grade_9
+    FROM 
+        CountriesData cd
+    WHERE 
+        cd.CountryID = ?;
+";
+
+$stmtMaximumHours = $conn->prepare($maximumHoursQuery);
+$stmtMaximumHours->bind_param("i", $countryID);
+$stmtMaximumHours->execute();
+$stmtMaximumHours->bind_result($maxHours, $noWeeks, $minutesPerClass, $Grade_1, $Grade_2, $Grade_3, $Grade_4, $Grade_5, $Grade_6, $Grade_7, $Grade_8, $Grade_9);
+$stmtMaximumHours->fetch();
+$stmtMaximumHours->close();
+
+$stmtTeachingHours = $conn->prepare($teachingHoursQuery);
+$stmtTeachingHours->bind_param("i", $countryID);
+$stmtTeachingHours->execute();
+$resultTeachingHours = $stmtTeachingHours->get_result();
+
+$teachingHours = [];
+while ($row = $resultTeachingHours->fetch_assoc()) {
+    $teachingHours[$row['SubjectID']][$row['GradeID']] = $row['AnnualHours'];
+}
+$stmtTeachingHours->close();
+ksort($teachingHours);
+
+/**
+ * All countries data
+ */
+
+ $specificSubjects = [
+    'Arabic Language',
+    'English Language',
+    'Mathematics',
+    'Science',
+    'Social Studies',
+    'Islamic Education',
+    'Physical Education'
+];
+
+// Initialize the dataset structure
+$countryDatasets = [];
+
+// Fetch all relevant subject IDs
+$subjectIds = [];
+$subjectQuery = "SELECT SubjectID, Subject FROM Subjects WHERE Subject IN ('" . implode("', '", $specificSubjects) . "')";
+$subjectResult = $conn->query($subjectQuery);
+
+if ($subjectResult->num_rows > 0) {
+    while ($subjectRow = $subjectResult->fetch_assoc()) {
+        $subjectIds[$subjectRow['SubjectID']] = $subjectRow['Subject'];
+    }
+}
+
+// Initialize the array for each subject
+foreach ($subjectIds as $subjectId => $subjectName) {
+    $countryDatasets[$subjectId] = [
+        'subject_name' => $subjectName,
+        7 => [], // Grade 7
+        8 => [], // Grade 8
+        9 => [], // Grade 9
+    ];
+}
+
+// Fetch teaching hours for each subject across all countries and grades
+foreach ($subjectIds as $subjectId => $subjectName) {
+    $teachingHoursQuery = "
+        SELECT th.GradeID, th.AnnualHours 
+        FROM TeachingHours th
+        JOIN CountriesData cd ON th.CountryID = cd.CountryID
+        WHERE th.SubjectID = $subjectId
+    ";
+
+    $teachingHoursResult = $conn->query($teachingHoursQuery);
+
+    if ($teachingHoursResult->num_rows > 0) {
+        while ($teachingHoursRow = $teachingHoursResult->fetch_assoc()) {
+            $gradeId = $teachingHoursRow['GradeID'];
+            $annualHours = $teachingHoursRow['AnnualHours'];
+
+            // Store the hours for each grade
+            if (!isset($countryDatasets[$subjectId][$gradeId])) {
+                $countryDatasets[$subjectId][$gradeId] = [];
+            }
+            // Append the annual hours to the respective grade
+            $countryDatasets[$subjectId][$gradeId][] = $annualHours;
+        }
+    }
+}
+
+// Structure the final output to match the expected format
+$finalOutput = [];
+foreach ($countryDatasets as $subjectId => $data) {
+    $subjectName = $data['subject_name'];
+    foreach ($data as $grade => $hours) {
+        if ($grade !== 'subject_name') { // Skip the subject name key
+            if (!isset($finalOutput[$grade])) {
+                $finalOutput[$grade] = [];
+            }
+            // Check if there are any teaching hours, otherwise use a default value
+            if (!empty($hours)) {
+                $finalOutput[$grade][$subjectName] = $hours;
+            } else {
+                $finalOutput[$grade][$subjectName] = 0; // or any default value
+            }
+        }
+    }
+}
+
+/**
+ * End all countries data
+ */
+
+
+
+$minvalues = [];
+$maxvalues = [];
+$averagevalues = [];
+
+$sql = "SELECT SubjectID, MinH, MaxH, AvgH FROM SubjectsLimits WHERE GradeID = 7 AND SubjectID BETWEEN 1 AND 7";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $minvalues[] = $row['MinH'];
+        $maxvalues[] = $row['MaxH'];
+        $averagevalues[] = $row['AvgH'];
+    }
+}
+
+$conn->close();
+?>
+
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
     <head>
@@ -269,7 +504,7 @@
                 transition: bottom 0.4s ease;
             }
             .panel_down {
-                bottom: -86px;
+                bottom: -<?php if (isset($_SESSION['job']) && $_SESSION['job'] != 1) { echo "86px"; } else { echo "54px"; } ?>;
             }
             table {
                 border-collapse: collapse !important; /* Ensures no spacing between cells */
@@ -443,7 +678,6 @@
             document.querySelector('[data-target="#homemodalbox"]').click()
         </script>
         <header>
-
             <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-scrollable" role="document">
                     <div class="modal-content">
@@ -454,54 +688,78 @@
                             </button>
                         </div>
                         <div class="modal-body">
-                            <form id="addSubForm">
+                            <form id="addSubForm" action="addsubject.php" method="POST">
                                 <div class="form-group">
-                                    <label for="subject-name" class="col-form-label">Subject Name:</label>
-                                    <input type="text" class="form-control" id="subject-name">
-                                </div>
-                                <div class="form-group">
-                                    <label for="subject-name-ar" class="col-form-label">Subject Name (Arabic):</label>
-                                    <input type="text" class="form-control" id="subject-name-ar">
+                                    <label class="col-form-label">Subject Name:</label>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <input type="text" class="form-control" name="subjectEnglishName" id="subject-name" placeholder="Subject English Name">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <input type="text" class="form-control" name="subjectArabicName" id="subject-name" placeholder="Subject Arabic Name">
+                                        </div>
+                                    </div>
                                 </div>
                                 
                                 <!-- Grades 1-6 in a single row -->
                                 <div class="form-group">
-                                    <label class="col-form-label">Subject Annual Hours for Grades 7-9:</label>
+                                    <label class="col-form-label">Subject Annual Hours for Grades 1-9:</label>
                                     <div class="row">
-                                        <div class="col-md-2">
-                                            <input type="text" class="form-control" placeholder="Grade 7" id="grade7">
+                                        <div class="col-md-4  mb-1 mb-1">
+                                            <input type="text" class="form-control" placeholder="Grade 1" name="grade1">
                                         </div>
-                                        <div class="col-md-2">
-                                            <input type="text" class="form-control" placeholder="Grade 8" id="grade8">
+                                        <div class="col-md-4  mb-1">
+                                            <input type="text" class="form-control" placeholder="Grade 2" name="grade2">
                                         </div>
-                                        <div class="col-md-2">
-                                            <input type="text" class="form-control" placeholder="Grade 9" id="grade9">
+                                        <div class="col-md-4  mb-1">
+                                            <input type="text" class="form-control" placeholder="Grade 3" name="grade3">
+                                        </div>
+                                        <div class="col-md-4  mb-1">
+                                            <input type="text" class="form-control" placeholder="Grade 4" name="grade4">
+                                        </div>
+                                        <div class="col-md-4  mb-1">
+                                            <input type="text" class="form-control" placeholder="Grade 5" name="grade5">
+                                        </div>
+                                        <div class="col-md-4  mb-1">
+                                            <input type="text" class="form-control" placeholder="Grade 6" name="grade6">
+                                        </div>
+                                        <div class="col-md-4  mb-1">
+                                            <input type="text" class="form-control" placeholder="Grade 7" name="grade7">
+                                        </div>
+                                        <div class="col-md-4  mb-1">
+                                            <input type="text" class="form-control" placeholder="Grade 8" name="grade8">
+                                        </div>
+                                        <div class="col-md-4  mb-1">
+                                            <input type="text" class="form-control" placeholder="Grade 9" name="grade9">
                                         </div>
                                     </div>
                                 </div>
-            
+                                
+
                                 <div class="form-group">
-                                    <label for="min-hours" class="col-form-label">Subject Minimum Hours:</label>
-                                    <input type="text" class="form-control" id="min-hours">
+                                    <label class="col-form-label">Subject Ratio-Weights:</label>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <input type="text" class="form-control" name="minHours" placeholder="Minimum">
+                                        </div>
+                                        <div class="col-md-4">
+                                        <input type="text" class="form-control" name="maxHours" placeholder="Maximum">
+                                        </div>
+                                        <div class="col-md-4">
+                                        <input type="text" class="form-control" name="avgHours" placeholder="Ratio-Weight">
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="max-hours" class="col-form-label">Subject Maximum Hours:</label>
-                                    <input type="text" class="form-control" id="max-hours">
-                                </div>
-                                <div class="form-group">
-                                    <label for="avg-hours" class="col-form-label">Subject Average Hours:</label>
-                                    <input type="text" class="form-control" id="avg-hours">
-                                </div>
-                            </form>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                            <button type="button" class="btn btn-primary" data-dismiss="modal" onclick="addSub();">Add Subject</button>
-                        </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-primary">Add Subject</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
-
+            
             <div class="topline"></div>
             <div class="top_header">
                 <!-- Logo -->
@@ -521,7 +779,7 @@
                                     </button>
                                 </form>
                                 <div>
-                                    <a href="https://www.gaserc.org/locale/ar">
+                                    <a href="http://pre-release.test/frontend/dashboard79_ar.php?<?php echo $_SERVER['QUERY_STRING']; ?>">
                                         <img title="العربية" width="34px" height="38px" src="https://www.gaserc.org/admin_assets/assets/media/flags/107-kwait.svg" alt="arabic">
                                     </a>
                                 </div>
@@ -895,25 +1153,66 @@
                             </div>
                             <div class="container mt-2">
                                 <div class="form-group row mb-1">
-                                    <label for="inputEmail3" class="col-sm-2 col-form-label">Change</label>
+                                    <label for="inputEmail3" class="col-sm-2 col-form-label">
+                                    <?php
+                                        if (isset($_SESSION['job']) && $_SESSION['job'] != 1) {
+                                            echo "Changes";
+                                        } else {
+                                            echo "Actions";
+                                        }
+                                    ?>
+                                    </label>
                                     <div class="col-sm-10">
-                                        <button type="button" class="btn btn-danger" onclick="spinButton2SpinDown();" style="width: 32px;">-</button>
-                                        <button type="button" class="btn btn-danger" onclick="spinButton2SpinUp();" style="width: 32px;">+</button>
-                                        <button type="button" class="btn btn-secondary ml-5" onclick="ButtonToNeutraliseAnomalies_Click();" style="width: 180px;">Compensation</button>
+                                    <?php
+                                        if (isset($_SESSION['job']) && $_SESSION['job'] != 1) {
+                                    ?>
+                                            <button type="button" class="btn btn-danger" onclick="spinButton2SpinDown();" style="width: 32px;">-</button>
+                                            <button type="button" class="btn btn-danger" onclick="spinButton2SpinUp();" style="width: 32px;">+</button>
+                                            <button type="button" class="btn btn-secondary ml-5" onclick="ButtonToNeutraliseAnomalies_Click();" style="width: 180px;">Compensation</button>
+                                    <?php
+                                        }
+                                    ?>
                                         <button type="button" class="btn btn-success" onclick="downloadPDF2();" style="width: 132px;">Print</button>
-                                        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModal" data-whatever="@mdo" style="width: 150px;" onclick="addSub();">Add Subject</button>
+                                    <?php
+                                        if (isset($_SESSION['job']) && $_SESSION['job'] != 1) {
+                                    ?>
+                                            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModal" data-whatever="@mdo" style="width: 150px;">Add Subject</button>
+                                    <?php
+                                        }
+                                    ?>
                                     </div>
                                 </div>
-                                <div class="form-group row" style="margin-bottom: 0;">
-                                    <label for="inputEmail3" class="col-sm-2 col-form-label">Auto-Change</label>
-                                    <div class="col-sm-10">
-                                        <button type="button" class="btn btn-primary" onclick="spinButton1SpinDown();" style="width: 32px;">-</button>
-                                        <button type="button" class="btn btn-primary" onclick="spinButton1SpinUp();" style="width: 32px;">+</button>
-                                        <button type="button" class="btn btn-warning ml-5" onclick="reset();" style="width: 180px;">Reset</button>
-                                        <button type="button" class="btn btn-success" onclick="publish();" style="width: 132px;">Publish</button>
-                                        <button type="button" class="btn btn-danger" onclick="removeSub();" style="width: 150px;">Remove Subject</button>
-                                    </div>
-                                </div>
+                                <?php
+                                    if (isset($_SESSION['job']) && $_SESSION['job'] != 1) {
+                                ?>
+                                        <div class="form-group row" style="margin-bottom: 0;">
+                                            <label for="inputEmail3" class="col-sm-2 col-form-label">Auto-Change</label>
+                                            <div class="col-sm-10">
+                                                <button type="button" class="btn btn-primary" onclick="spinButton1SpinDown();" style="width: 32px;">-</button>
+                                                <button type="button" class="btn btn-primary" onclick="spinButton1SpinUp();" style="width: 32px;">+</button>
+                                                <button type="button" class="btn btn-warning ml-5" onclick="reset();" style="width: 180px;">Reset</button>
+                                                <button type="button" class="btn btn-success" onclick="publish();" style="width: 132px;">Publish</button>
+                                                <button type="submit" class="btn btn-danger" onclick="removeSub();" style="width: 150px;">Remove Subject</button>
+                                            </div>
+                                        </div>
+                                <?php
+                                    }
+                                ?>
+                                <form action="delete_subject.php" method="POST" id="rform">
+                                    <input type="hidden" name="subjectName" value="" id="rforminp">
+                                </form>
+                                <form action="update_teachinghours.php" method="POST" id="rform2">
+                                    <input type="hidden" name="start" value="7">
+                                    <input type="hidden" name="end" value="9">
+                                    <input type="hidden" name="values" value="" id="rforminp2">
+                                </form>
+                                <form id="pdfForm" action="generate_pdf.php" method="POST" target="_blank" style="display: none;">
+                                    <input type="hidden" name="start" value="7">
+                                    <input type="hidden" name="end" value="9">
+                                    <input type="hidden" name="subjects" id="subjectsField">
+                                    <input type="hidden" name="mainMatrix" id="mainMatrixField">
+                                    <input type="hidden" name="planningMatrix" id="planningMatrixField">
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -931,198 +1230,57 @@
                                     <tbody>
                                         <tr>
                                             <th>number of Weeks</th>
-                                            <td class="numVal" id="noWeeks">38</td>
+                                            <td class="numVal" id="noWeeks"><?php echo $noWeeks; ?></td>
                                         </tr>
                                         <tr>
                                             <th>Class Time (min)</th>
-                                            <td class="numVal" id="classMints">45</td>
+                                            <td class="numVal" id="classMints"><?php echo $minutesPerClass; ?></td>
                                         </tr>
                                         <tr>
                                             <th>hours / year</th>
-                                            <td class="numVal" id="incrementPeriodsPerClick">29</td>
+                                            <td class="numVal" id="incrementPeriodsPerClick"><?php echo $noWeeks * $minutesPerClass; ?></td>
                                         </tr>
                                     </tbody>
                                 </table>
                                 <table class="table" id="historicalTableHead">
                                     <thead>
                                         <tr>
-                                            <th>Cycle</th>
-                                            <th>Cy3</th>
-                                            <th>Cy3</th>
-                                            <th>Cy3</th>
-                                            <th rowspan="2" style="width: 75px;">Hrs Tot</th>
-                                            <th rowspan="2" style="width: 75px;">%</th>
-                                        </tr>
-                                        <tr>
                                             <th style="width: 330px;">Grade</th>
                                             <th>7</th>
                                             <th>8</th>
                                             <th>9</th>
+                                            <th style="width: 75px;">Tot</th>
+                                            <th style="width: 75px;">%</th>
                                         </tr>
                                     </thead>
                                 </table>
                                 <table class="table" id="historicalTable">
                                     <tbody>
-                                        <tr>
-                                            <td class="subname">Islamic education</td>
-                                            <td class="numVal">58</td>
-                                            <td class="numVal">58</td>
-                                            <td class="numVal">58</td>
-                                            <td class="numValt">174</td>
-                                            <td class="numValp">8%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Arabic</td>
-                                            <td class="numVal">175</td>
-                                            <td class="numVal">175</td>
-                                            <td class="numVal">175</td>
-                                            <td class="numValt">525</td>
-                                            <td class="numValp">25%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">English</td>
-                                            <td class="numVal">146</td>
-                                            <td class="numVal">146</td>
-                                            <td class="numVal">146</td>
-                                            <td class="numValt">438</td>
-                                            <td class="numValp">12%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Mathematics</td>
-                                            <td class="numVal">146</td>
-                                            <td class="numVal">146</td>
-                                            <td class="numVal">146</td>
-                                            <td class="numValt">438</td>
-                                            <td class="numValp">18%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Sciences</td>
-                                            <td class="numVal">117</td>
-                                            <td class="numVal">117</td>
-                                            <td class="numVal">117</td>
-                                            <td class="numValt">438</td>
-                                            <td class="numValp">11%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Social studies</td>
-                                            <td class="numVal">88</td>
-                                            <td class="numVal">88</td>
-                                            <td class="numVal">88</td>
-                                            <td class="numValt">264</td>
-                                            <td class="numValp">9%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Physical education</td>
-                                            <td class="numVal">58</td>
-                                            <td class="numVal">58</td>
-                                            <td class="numVal">58</td>
-                                            <td class="numValt">174</td>
-                                            <td class="numValp">7%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Art & music</td>
-                                            <td class="numVal">29</td>
-                                            <td class="numVal">29</td>
-                                            <td class="numVal">29</td>
-                                            <td class="numValt">87</td>
-                                            <td class="numValp">8%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Practical skills</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">2%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Additional support</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Choise by school</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Optional subjects</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">New subjects</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Integrated subjects</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Theme-subjects</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Projects & interdisc</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Combined subject</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Special subject 1</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Special subject 2</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Special subject 3</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
+                                    <?php 
+                                        foreach ($teachingHours as $subjectID => $grades) {
+                                            $subjectName = isset($subjects[$subjectID]) ? $subjects[$subjectID] : 'Unknown Subject';
+                                            
+                                            $totalTeachingHours = 0;
+                                            for ($grade = 7; $grade <= 9; $grade++) {
+                                                $totalTeachingHours += isset($grades[$grade]) ? $grades[$grade] : 0;
+                                            }
+                                            
+                                            $percentage = $totalTeachingHours > 0 ? round(($totalTeachingHours / $maxHours) * 100, 0) . '%' : '0%';
+
+                                            echo '<tr>';
+                                            echo '<td class="subname">' . htmlspecialchars($subjectName) . '</td>';
+                                            
+                                            // Output hours for each grade from 1 to 6
+                                            for ($grade = 7; $grade <= 9; $grade++) {
+                                                $hours = isset($grades[$grade]) ? $grades[$grade] : 0;
+                                                echo '<td class="numVal">' . htmlspecialchars($hours) . '</td>';
+                                            }
+
+                                            echo '<td class="numValt">' . $totalTeachingHours . '</td>';
+                                            echo '<td class="numValp">' . $percentage . '</td>';
+                                            echo '</tr>';
+                                        }
+                                    ?>
                                     </tbody>
                                 </table>
                             </div>
@@ -1135,18 +1293,11 @@
                                 <table class="table" id="HypotheticalTableHead">
                                     <thead>
                                         <tr>
-                                            <th>Cycle</th>
-                                            <th>Cy3</th>
-                                            <th>Cy3</th>
-                                            <th>Cy3</th>
-                                            <th rowspan="2" style="width: 75px;">Tot</th>
-                                            <th rowspan="2" style="width: 75px;">%</th>
-                                        </tr>
-                                        <tr>
                                             <th style="width: 330px;">Grade</th>
                                             <th>7</th>
                                             <th>8</th>
                                             <th>9</th>
+                                            <th style="width: 75px;">Tot</th>
                                         </tr>
                                     </thead>
                                 </table>
@@ -1154,176 +1305,41 @@
                                     <tbody>
                                         <tr>
                                             <td style="width: 330px;">Total Instruct Time</td>
-                                            <td class="numVal">875</td>
-                                            <td class="numVal">875</td>
-                                            <td class="numVal">875</td>
-                                            <td class="numValt" style="width: 75px;">2625</td>
+                                            <td class="numVal"><?php echo $Grade_7; ?></td>
+                                            <td class="numVal"><?php echo $Grade_8; ?></td>
+                                            <td class="numVal"><?php echo $Grade_9; ?></td>
+                                            <td class="numValt" style="width: 75px;"><?php echo $Grade_7+$Grade_8+$Grade_9; ?></td>
                                             <td class="numValp" style="width: 75px;">100%</td>
                                         </tr>
                                     </tbody>
                                 </table>
                                 <table class="table" id="HypotheticalTable">
                                     <tbody>
-                                        <tr>
-                                            <td class="subname">Islamic education</td>
-                                            <td class="numVal">58</td>
-                                            <td class="numVal">58</td>
-                                            <td class="numVal">58</td>
-                                            <td class="numValt">174</td>
-                                            <td class="numValp">8%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Arabic</td>
-                                            <td class="numVal">175</td>
-                                            <td class="numVal">175</td>
-                                            <td class="numVal">175</td>
-                                            <td class="numValt">525</td>
-                                            <td class="numValp">25%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">English</td>
-                                            <td class="numVal">146</td>
-                                            <td class="numVal">146</td>
-                                            <td class="numVal">146</td>
-                                            <td class="numValt">438</td>
-                                            <td class="numValp">12%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Mathematics</td>
-                                            <td class="numVal">146</td>
-                                            <td class="numVal">146</td>
-                                            <td class="numVal">146</td>
-                                            <td class="numValt">438</td>
-                                            <td class="numValp">18%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Sciences</td>
-                                            <td class="numVal">117</td>
-                                            <td class="numVal">117</td>
-                                            <td class="numVal">117</td>
-                                            <td class="numValt">438</td>
-                                            <td class="numValp">11%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Social studies</td>
-                                            <td class="numVal">88</td>
-                                            <td class="numVal">88</td>
-                                            <td class="numVal">88</td>
-                                            <td class="numValt">264</td>
-                                            <td class="numValp">9%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Physical education</td>
-                                            <td class="numVal">58</td>
-                                            <td class="numVal">58</td>
-                                            <td class="numVal">58</td>
-                                            <td class="numValt">174</td>
-                                            <td class="numValp">7%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Art & music</td>
-                                            <td class="numVal">29</td>
-                                            <td class="numVal">29</td>
-                                            <td class="numVal">29</td>
-                                            <td class="numValt">87</td>
-                                            <td class="numValp">8%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Practical skills</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">2%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Additional support</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Choise by school</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Optional subjects</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">New subjects</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Integrated subjects</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Theme-subjects</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Projects & interdisc</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Combined subject</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Special subject 1</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Special subject 2</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="subname">Special subject 3</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numVal">0</td>
-                                            <td class="numValt">0</td>
-                                            <td class="numValp">0%</td>
-                                        </tr>
+                                    <?php 
+                                        foreach ($teachingHours as $subjectID => $grades) {
+                                            // Get the subject name or set it to 'Unknown Subject' if not found
+                                            $subjectName = isset($subjects[$subjectID]) ? $subjects[$subjectID] : 'Unknown Subject';
+                                            
+                                            $totalTeachingHours = 0;
+                                            for ($grade = 7; $grade <= 9; $grade++) {
+                                                $totalTeachingHours += isset($grades[$grade]) ? $grades[$grade] : 0;
+                                            }
+                                            
+                                            $percentage = $totalTeachingHours > 0 ? round(($totalTeachingHours / $maxHours) * 100, 0) . '%' : '0%';
+
+                                            echo '<tr>';
+                                            echo '<td class="subname">' . htmlspecialchars($subjectName) . '</td>';
+                                            
+                                            for ($grade = 7; $grade <= 9; $grade++) {
+                                                $hours = isset($grades[$grade]) ? $grades[$grade] : 0;
+                                                echo '<td class="numVal">' . htmlspecialchars($hours) . '</td>';
+                                            }
+
+                                            echo '<td class="numValt">' . $totalTeachingHours . '</td>';
+                                            echo '<td class="numValp">' . $percentage . '</td>';
+                                            echo '</tr>';
+                                        }
+                                    ?>
                                     </tbody>
                                 </table>
                             </div>
@@ -1337,163 +1353,37 @@
                             <table class="table" id="changesHead">
                                 <thead>
                                     <tr>
-                                        <th>Cycle</th>
-                                        <th>Cy3</th>
-                                        <th>Cy3</th>
-                                        <th>Cy3</th>
-                                        <th rowspan="2" style="width: 75px;">Tot</th>
-                                    </tr>
-                                    <tr>
                                         <th style="width: 330px;">Grade</th>
                                         <th>7</th>
                                         <th>8</th>
                                         <th>9</th>
+                                        <th style="width: 75px;">Tot</th>
                                     </tr>
                                 </thead>
                             </table>
                             <table class="table" id="ChangesTable">
                                 <tbody>
-                                    <tr>
-                                        <td class="subname">Islamic education</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Arabic</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">English</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Mathematics</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Sciences</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Social studies</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Physical education</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Art & music</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Practical skills</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Additional support</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Choise by school</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Optional subjects</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">New subjects</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Integrated subjects</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Theme-subjects</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Projects & interdisc</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Combined subject</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Special subject 1</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Special subject 2</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">Special subject 3</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                    </tr>
-                                </tbody>
+                                        <?php 
+                                            
+                                            foreach ($teachingHours as $subjectID => $grades) {
+                                                $subjectName = isset($subjects[$subjectID]) ? $subjects[$subjectID] : 'Unknown Subject';
+                                                $totalTeachingHours = array_sum($grades);
+                                                
+                                                $percentage = $totalTeachingHours > 0 ? round(($totalTeachingHours / $maxHours) * 100, 0) . '%' : '0%';
+                                            
+                                                echo '<tr>';
+                                                echo '<td class="subname">' . htmlspecialchars($subjectName) . '</td>';
+                                                
+                                                for ($grade = 7; $grade <= 9; $grade++) {
+                                                    $hours = isset($grades[$grade]) ? $grades[$grade] : 0;
+                                                    echo '<td class="numVal">' . 0 . '</td>';
+                                                }
+                                                echo '<td class="numValt">' . 0 . '</td>';
+                                                echo '</tr>';
+                                            }
+
+                                        ?>
+                                    </tbody>
                             </table>
                             <table class="table" id="totalAnomaly">
                                 <tbody>
@@ -1519,9 +1409,9 @@
                             <canvas id="pieChart"></canvas>
                         </div>
                         <div class="btn-group d-flex justify-content-center" role="group" style="margin-top: 20px;">
-                            <button class="btn btn-primary custom-btn mx-2" id="btn0" onclick="updatePieChart(0)">7</button>
-                            <button class="btn btn-primary custom-btn mx-2" id="btn1" onclick="updatePieChart(1)">8</button>
-                            <button class="btn btn-primary custom-btn mx-2" id="btn2" onclick="updatePieChart(2)">9</button>
+                            <button class="btn btn-primary custom-btn mx-2" id="btn0" onclick="updatePieChart(6)">7</button>
+                            <button class="btn btn-primary custom-btn mx-2" id="btn1" onclick="updatePieChart(7)">8</button>
+                            <button class="btn btn-primary custom-btn mx-2" id="btn2" onclick="updatePieChart(8)">9</button>
                         </div>
                     </div>
             
@@ -1547,7 +1437,6 @@
                             <button class="btn btn-primary custom-btn mx-1" onclick="updateCountryPieChart('Science')">Science</button>
                             <button class="btn btn-primary custom-btn mx-1" onclick="updateCountryPieChart('Social Studies')">Social Studies</button>
                             <button class="btn btn-primary custom-btn mx-1" onclick="updateCountryPieChart('Physical Education')">Physical Education</button>
-                            <button class="btn btn-primary custom-btn mx-1" onclick="updateCountryPieChart('Art & Music')">Art & music</button>
                         </div>
                         <div class="btn-group d-flex justify-content-center" role="group" style="margin-top: 4px;">
                             <button class="btn btn-primary custom-btn mx-1" onclick="setPYear(7)">7</button>
@@ -1557,7 +1446,7 @@
                     </div>
                 </div>
             </div>
-        </section>        
+        </section>
         <!-- Latest Books -->
         <section class="gray_bg mb-40 scroll-element js-scroll fade-in-bottom" dir='ltr'>
             <div class="container">
@@ -1943,24 +1832,44 @@ No. 12580 - Shamiya 71656
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
         <script>
-            const totalSchoolYears = 3;
-            const totalSchoolSubjects = 20;
+            function extendArray(arr, desiredLength, fillValue = 0) {
+                if (arr.length < desiredLength) {
+                    arr.length = desiredLength;
+                    arr.fill(fillValue, arr.length - (desiredLength - arr.length));
+                }
+                return arr;
+            }
+
+            var totalSchoolYears = 3;
+            var totalSchoolSubjects = <?php echo count($subjects) ?>;
             var HistoricalHours = Array.from({ length: totalSchoolSubjects }, () => Array(totalSchoolYears).fill(0));
-            var HistoricalHoursMin = Array.from({ length: totalSchoolSubjects }, () => Array(totalSchoolYears).fill(0));
-            var HistoricalHoursMax = Array.from({ length: totalSchoolSubjects }, () => Array(totalSchoolYears).fill(0));
+            var HistoricalHoursMin = Array.from({ length: totalSchoolSubjects }).fill(0);
+            var HistoricalHoursMax = Array.from({ length: totalSchoolSubjects }).fill(0);
             var HITV = document.querySelectorAll("#historicalTable .numVal");
             var indx = 0;
+            var indxv = 0;
             for (let i = 0; i < totalSchoolSubjects; i++) {
                 for (let j = 0; j < totalSchoolYears; j++) {
-                    HistoricalHours[i][j] = parseInt(HITV[indx++].innerText);
+                    indxv = parseInt(HITV[indx++].innerText);
+                    HistoricalHours[i][j] = indxv;
+                    // HistoricalHoursMax[i][j] = (indxv + 87);
+                    // HistoricalHoursMin[i][j] = ((indxv - 87) > 0 ) ? (indxv - 87) : 0;
                 }
             }
+            HistoricalHoursMin = <?php echo json_encode($minvalues); ?>;
+            HistoricalHoursMin = extendArray(HistoricalHoursMin, totalSchoolSubjects);
+            HistoricalHoursMax = <?php echo json_encode($maxvalues); ?>;
+            HistoricalHoursMax = extendArray(HistoricalHoursMax, totalSchoolSubjects, <?php echo $maxHours; ?>);
             var AnomaliesEachYear = [0, 0, 0, 0, 0, 0]; 
-            var DesiredTotInstrucTimeEachYear = [875, 875, 875]; 
+            var DesiredTotInstrucTimeEachYear = [<?php echo $Grade_7; ?>,
+                                                 <?php echo $Grade_8; ?>,
+                                                 <?php echo $Grade_9; ?>];
             var HypotheticalWeeklyPeriods = HistoricalHours.map(row => [...row]);
             var HypotheticalHours = HypotheticalWeeklyPeriods;
-            var totals = [875, 875, 875];
-            var totals_c = 2625;
+            var totals = [<?php echo $Grade_7; ?>,
+                          <?php echo $Grade_8; ?>,
+                          <?php echo $Grade_9; ?>]; 
+            var totals_c = <?php echo $maxHours; ?>;
             var diff = Array.from({ length: totalSchoolSubjects }, () => Array(totalSchoolYears).fill(0));
         </script>
         <script src="./js/extra-script-16.js"></script>
@@ -1969,26 +1878,21 @@ No. 12580 - Shamiya 71656
             var psubject = 'Islamic Education';
             // Pie chart datasets
             let pieDatasets = [
-                [12, 19, 3, 5, 2, 3, 1, 5],
-                [8, 12, 6, 10, 4, 9, 2, 4],
-                [10, 7, 12, 4, 5, 6, 3, 6]
+                [12, 19, 3, 5, 2, 3, 1],
+                [8, 12, 6, 10, 4, 9, 2],
+                [10, 7, 12, 4, 5, 6, 3],
+                [9, 5, 2, 18, 7, 3, 4],
+                [15, 8, 9, 5, 13, 4, 5],
+                [5, 6, 10, 8, 12, 15, 6]
             ];
             let transh = transposeMatrix(HypotheticalHours);
-            for (let i = 0; i < totalSchoolYears; i++) {
-                for (let j = 0; j < 8; j++) {
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < totalSchoolSubjects; j++) {
                     pieDatasets[i][j] = transh[i][j];
                 }
             }
-            const sublabels = [
-                "Islamic education",
-                "Arabic",
-                "English",
-                "Mathematics",
-                "Sciences",
-                "Social studies",
-                "Physical education",
-                "Art & music"
-            ];
+            let sublabels = <?php echo json_encode(array_values($subjects)); ?>;
+            // sublabels = sublabels.slice(0, 7);
 
             // Pie chart configuration
             let pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
@@ -2032,7 +1936,7 @@ No. 12580 - Shamiya 71656
                     labels: ['Grade 7', 'Grade 8', 'Grade 9'],
                     datasets: [{
                         label: 'Anomalies',
-                        data: [0, 0, 0],
+                        data: [0, 0, 0, 0, 0, 0],
                         backgroundColor: [
                             'rgba(255, 99, 132, 0.8)',   // 1st color
                             'rgba(54, 162, 235, 0.8)',   // 2nd color
@@ -2075,8 +1979,8 @@ No. 12580 - Shamiya 71656
             // Function to update pie chart datasets
             function updatePieChart(index) {
                 let transh = transposeMatrix(HypotheticalHours);
-                for (let i = 0; i < totalSchoolYears; i++) {
-                    for (let j = 0; j < 8; j++) {
+                for (let i = 0; i < 3; i++) {
+                    for (let j = 0; j < totalSchoolSubjects; j++) {
                         pieDatasets[i][j] = transh[i][j];
                     }
                 }
@@ -2084,47 +1988,73 @@ No. 12580 - Shamiya 71656
                 pieChart.update();
             }
 
-            const countryDatasets = {
-                7: {
-                    'Islamic Education': [12, 18, 25, 30, 50, 70, 80],
-                    'Arabic Language': [14, 23, 37, 45, 55, 65, 75],
-                    'English Language': [22, 29, 33, 48, 55, 60, 73],
-                    'Mathematics': [10, 15, 35, 45, 52, 64, 76],
-                    'Science': [25, 32, 41, 50, 65, 70, 80],
-                    'Social Studies': [18, 28, 35, 42, 59, 68, 72],
-                    'Physical Education': [5, 15, 25, 35, 55, 63, 75],
-                    'Art & Music': [15, 11, 5, 13, 15, 16, 17]
+            let countryDatasets = {
+                1: {
+                    'Islamic Education': [12, 18, 25, 30, 50, 70],
+                    'Arabic Language': [14, 23, 37, 45, 55, 65],
+                    'English Language': [22, 29, 33, 48, 55, 60],
+                    'Mathematics': [10, 15, 35, 45, 52, 64],
+                    'Science': [25, 32, 41, 50, 65, 70],
+                    'Social Studies': [18, 28, 35, 42, 59, 68],
+                    'Physical Education': [5, 15, 25, 35, 55, 63]
                 },
-                8: {
+                2: {
                     'Islamic Education': [14, 20, 30, 35, 55, 72, 82],
                     'Arabic Language': [16, 26, 40, 50, 60, 68, 78],
                     'English Language': [24, 31, 36, 50, 58, 63, 75],
                     'Mathematics': [12, 17, 37, 47, 55, 66, 78],
                     'Science': [27, 34, 44, 53, 68, 73, 83],
                     'Social Studies': [20, 30, 38, 45, 62, 71, 74],
-                    'Physical Education': [7, 17, 27, 37, 58, 65, 77],
-                    'Art & Music': [16, 13, 7, 15, 17, 18, 19]
+                    'Physical Education': [7, 17, 27, 37, 58, 65, 77]
                 },
-                9: {
+                3: {
                     'Islamic Education': [13, 19, 28, 32, 52, 71, 81],
                     'Arabic Language': [15, 25, 38, 47, 57, 66, 77],
                     'English Language': [23, 30, 34, 49, 57, 62, 74],
                     'Mathematics': [11, 16, 36, 46, 54, 65, 77],
                     'Science': [26, 33, 43, 52, 67, 72, 82],
                     'Social Studies': [19, 29, 37, 44, 61, 70, 73],
-                    'Physical Education': [6, 16, 26, 36, 57, 64, 76],
-                    'Art & Music': [15, 12, 6, 14, 16, 17, 18]
+                    'Physical Education': [6, 16, 26, 36, 57, 64, 76]
+                },
+                4: {
+                    'Islamic Education': [11, 17, 27, 31, 51, 69, 79],
+                    'Arabic Language': [13, 22, 36, 44, 54, 64, 74],
+                    'English Language': [21, 28, 32, 47, 54, 59, 72],
+                    'Mathematics': [9, 14, 34, 44, 51, 63, 75],
+                    'Science': [24, 31, 40, 49, 64, 69, 79],
+                    'Social Studies': [17, 27, 34, 41, 58, 67, 71],
+                    'Physical Education': [4, 14, 24, 34, 54, 61, 74]
+                },
+                5: {
+                    'Islamic Education': [16, 22, 32, 37, 57, 74, 84],
+                    'Arabic Language': [18, 28, 42, 52, 62, 70, 80],
+                    'English Language': [26, 33, 38, 52, 60, 65, 77],
+                    'Mathematics': [14, 19, 39, 49, 57, 69, 81],
+                    'Science': [29, 36, 46, 55, 70, 75, 85],
+                    'Social Studies': [22, 32, 40, 47, 64, 73, 76],
+                    'Physical Education': [9, 19, 29, 39, 60, 67, 79]
+                },
+                6: {
+                    'Islamic Education': [17, 23, 33, 38, 58, 75, 85],
+                    'Arabic Language': [19, 29, 43, 53, 63, 71, 81],
+                    'English Language': [27, 34, 39, 53, 61, 66, 78],
+                    'Mathematics': [15, 20, 40, 50, 58, 70, 82],
+                    'Science': [30, 37, 47, 56, 71, 76, 86],
+                    'Social Studies': [23, 33, 41, 48, 65, 74, 77],
+                    'Physical Education': [10, 20, 30, 40, 61, 68, 80]
                 }
             };
 
+            countryDatasets = <?php echo json_encode($finalOutput); ?>;
+
             // Labels for the country datasets (same for all)
             const countryLabels = [
+                'United Arab Emirates',
                 'Bahrain',
-                'Kuwait',
+                'Saudi Arabia',
                 'Oman',
                 'Qatar',
-                'Saudi Arabia',
-                'United Arab Emirates',
+                'Kuwait', 
                 'Yemen'
             ];
 
@@ -2139,13 +2069,14 @@ No. 12580 - Shamiya 71656
                 'rgba(75, 0, 130, 0.8)'       // 8th color (Indigo)
             ];
 
+            
             // Create full-width pie chart
             let fullWidthPieChart = new Chart(document.getElementById('fullWidthPieChart').getContext('2d'), {
                 type: 'pie',
                 data: {
                     labels: countryLabels,
                     datasets: [{
-                        data: countryDatasets[pyear][psubject], // Default dataset
+                        data: countryDatasets[pyear][psubject].slice(0, 6), // Default dataset
                         backgroundColor: colors,  // Reuse the color array
                         borderColor: colors.map(color => color.replace(/0.8/, '1')), // Reuse the border colors
                         borderWidth: 1
@@ -2155,19 +2086,17 @@ No. 12580 - Shamiya 71656
                     responsive: true
                 }
             });
-        
-            function updateCountryPieChart(country) {
-                psubject = country;
-                fullWidthPieChart.data.datasets[0].data = countryDatasets[pyear][country]; // Update data
+            function updateCountryPieChart(subject) {
+                psubject = subject;
+                fullWidthPieChart.data.datasets[0].data = countryDatasets[pyear][subject].slice(0, 6); // Update data
                 fullWidthPieChart.update(); // Re-render the chart
             }
 
             function setPYear(num) {
                 pyear = num;
-                fullWidthPieChart.data.datasets[0].data = countryDatasets[num][psubject]; // Update data
+                fullWidthPieChart.data.datasets[0].data = countryDatasets[num][psubject].slice(0, 6); // Update data
                 fullWidthPieChart.update(); // Re-render the chart
             }
-            
         </script>            
     </body>
 </html>

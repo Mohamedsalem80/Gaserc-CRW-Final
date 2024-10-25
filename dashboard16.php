@@ -782,7 +782,7 @@ $conn->close();
                                     </button>
                                 </form>
                                 <div>
-                                    <a href="https://www.gaserc.org/locale/ar">
+                                    <a href="http://pre-release.test/frontend/dashboard16_ar.php?<?php echo $_SERVER['QUERY_STRING']; ?>">
                                         <img title="العربية" width="34px" height="38px" src="https://www.gaserc.org/admin_assets/assets/media/flags/107-kwait.svg" alt="arabic">
                                     </a>
                                 </div>
@@ -1196,19 +1196,26 @@ $conn->close();
                                                 <button type="button" class="btn btn-warning ml-5" onclick="reset();" style="width: 180px;">Reset</button>
                                                 <button type="button" class="btn btn-success" onclick="publish();" style="width: 132px;">Publish</button>
                                                 <button type="submit" class="btn btn-danger" onclick="removeSub();" style="width: 150px;">Remove Subject</button>
-                                                <form action="delete_subject.php" method="POST" id="rform">
-                                                    <input type="hidden" name="subjectName" value="" id="rforminp">
-                                                </form>
-                                                <form action="update_teachinghours.php" method="POST" id="rform2">
-                                                    <input type="hidden" name="start" value="1">
-                                                    <input type="hidden" name="end" value="6">
-                                                    <input type="hidden" name="values" value="" id="rforminp2">
-                                                </form>
                                             </div>
                                         </div>
                                 <?php
                                     }
                                 ?>
+                                <form action="delete_subject.php" method="POST" id="rform">
+                                    <input type="hidden" name="subjectName" value="" id="rforminp">
+                                </form>
+                                <form action="update_teachinghours.php" method="POST" id="rform2">
+                                    <input type="hidden" name="start" value="1">
+                                    <input type="hidden" name="end" value="6">
+                                    <input type="hidden" name="values" value="" id="rforminp2">
+                                </form>
+                                <form id="pdfForm" action="generate_pdf.php" method="POST" target="_blank" style="display: none;">
+                                    <input type="hidden" name="start" value="1">
+                                    <input type="hidden" name="end" value="6">
+                                    <input type="hidden" name="subjects" id="subjectsField">
+                                    <input type="hidden" name="mainMatrix" id="mainMatrixField">
+                                    <input type="hidden" name="planningMatrix" id="planningMatrixField">
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -1255,27 +1262,35 @@ $conn->close();
                                 </table>
                                 <table class="table" id="historicalTable">
                                     <tbody>
-                                        <?php 
+                                    <?php 
+                                        foreach ($teachingHours as $subjectID => $grades) {
+                                            // Get the subject name or set it to 'Unknown Subject' if not found
+                                            $subjectName = isset($subjects[$subjectID]) ? $subjects[$subjectID] : 'Unknown Subject';
                                             
-                                            foreach ($teachingHours as $subjectID => $grades) {
-                                                $subjectName = isset($subjects[$subjectID]) ? $subjects[$subjectID] : 'Unknown Subject';
-                                                $totalTeachingHours = array_sum($grades);
-                                                
-                                                $percentage = $totalTeachingHours > 0 ? round(($totalTeachingHours / $maxHours) * 100, 0) . '%' : '0%';
+                                            // Calculate total teaching hours for grades 1 to 6
+                                            $totalTeachingHours = 0;
+                                            for ($grade = 1; $grade <= 6; $grade++) {
+                                                $totalTeachingHours += isset($grades[$grade]) ? $grades[$grade] : 0;
+                                            }
                                             
-                                                echo '<tr>';
-                                                echo '<td class="subname">' . htmlspecialchars($subjectName) . '</td>';
-                                                
-                                                for ($grade = 1; $grade <= 6; $grade++) {
-                                                    $hours = isset($grades[$grade]) ? $grades[$grade] : 0;
-                                                    echo '<td class="numVal">' . htmlspecialchars($hours) . '</td>';
-                                                }
-                                                echo '<td class="numValt">' . $totalTeachingHours . '</td>';
-                                                echo '<td class="numValp">' . $percentage . '</td>';
-                                                echo '</tr>';
+                                            // Calculate percentage based on maxHours for grades 1 to 6
+                                            $percentage = $totalTeachingHours > 0 ? round(($totalTeachingHours / $maxHours) * 100, 0) . '%' : '0%';
+
+                                            echo '<tr>';
+                                            echo '<td class="subname">' . htmlspecialchars($subjectName) . '</td>';
+                                            
+                                            // Output hours for each grade from 1 to 6
+                                            for ($grade = 1; $grade <= 6; $grade++) {
+                                                $hours = isset($grades[$grade]) ? $grades[$grade] : 0;
+                                                echo '<td class="numVal">' . htmlspecialchars($hours) . '</td>';
                                             }
 
-                                        ?>
+                                            // Output the total hours and percentage for grades 1 to 6
+                                            echo '<td class="numValt">' . $totalTeachingHours . '</td>';
+                                            echo '<td class="numValp">' . $percentage . '</td>';
+                                            echo '</tr>';
+                                        }
+                                    ?>
                                     </tbody>
                                 </table>
                             </div>
@@ -1309,34 +1324,42 @@ $conn->close();
                                             <td class="numVal"><?php echo $Grade_4; ?></td>
                                             <td class="numVal"><?php echo $Grade_5; ?></td>
                                             <td class="numVal"><?php echo $Grade_6; ?></td>
-                                            <td class="numValt" style="width: 75px;"><?php echo $maxHours; ?></td>
+                                            <td class="numValt" style="width: 75px;"><?php echo $Grade_1+$Grade_2+$Grade_3+$Grade_4+$Grade_5+$Grade_6; ?></td>
                                             <td class="numValp" style="width: 75px;">100%</td>
                                         </tr>
                                     </tbody>
                                 </table>
                                 <table class="table" id="HypotheticalTable">
                                     <tbody>
-                                        <?php 
+                                    <?php
+                                        foreach ($teachingHours as $subjectID => $grades) {
+                                            // Get the subject name or set it to 'Unknown Subject' if not found
+                                            $subjectName = isset($subjects[$subjectID]) ? $subjects[$subjectID] : 'Unknown Subject';
                                             
-                                            foreach ($teachingHours as $subjectID => $grades) {
-                                                $subjectName = isset($subjects[$subjectID]) ? $subjects[$subjectID] : 'Unknown Subject';
-                                                $totalTeachingHours = array_sum($grades);
-                                                
-                                                $percentage = $totalTeachingHours > 0 ? round(($totalTeachingHours / $maxHours) * 100, 0) . '%' : '0%';
+                                            // Calculate total teaching hours for grades 1 to 6
+                                            $totalTeachingHours = 0;
+                                            for ($grade = 1; $grade <= 6; $grade++) {
+                                                $totalTeachingHours += isset($grades[$grade]) ? $grades[$grade] : 0;
+                                            }
                                             
-                                                echo '<tr>';
-                                                echo '<td class="subname">' . htmlspecialchars($subjectName) . '</td>';
-                                                
-                                                for ($grade = 1; $grade <= 6; $grade++) {
-                                                    $hours = isset($grades[$grade]) ? $grades[$grade] : 0;
-                                                    echo '<td class="numVal">' . htmlspecialchars($hours) . '</td>';
-                                                }
-                                                echo '<td class="numValt">' . $totalTeachingHours . '</td>';
-                                                echo '<td class="numValp">' . $percentage . '</td>';
-                                                echo '</tr>';
+                                            // Calculate percentage based on maxHours for grades 1 to 6
+                                            $percentage = $totalTeachingHours > 0 ? round(($totalTeachingHours / $maxHours) * 100, 0) . '%' : '0%';
+
+                                            echo '<tr>';
+                                            echo '<td class="subname">' . htmlspecialchars($subjectName) . '</td>';
+                                            
+                                            // Output hours for each grade from 1 to 6
+                                            for ($grade = 1; $grade <= 6; $grade++) {
+                                                $hours = isset($grades[$grade]) ? $grades[$grade] : 0;
+                                                echo '<td class="numVal">' . htmlspecialchars($hours) . '</td>';
                                             }
 
-                                        ?>
+                                            // Output the total hours and percentage for grades 1 to 6
+                                            echo '<td class="numValt">' . $totalTeachingHours . '</td>';
+                                            echo '<td class="numValp">' . $percentage . '</td>';
+                                            echo '</tr>';
+                                        }
+                                    ?>
                                     </tbody>
                                 </table>
                             </div>
@@ -1358,14 +1381,12 @@ $conn->close();
                                         <th>5</th>
                                         <th>6</th>
                                         <th style="width: 75px;">Tot</th>
-                                        <th style="width: 75px;">%</th>
                                     </tr>
                                 </thead>
                             </table>
                             <table class="table" id="ChangesTable">
                                 <tbody>
                                         <?php 
-                                            
                                             foreach ($teachingHours as $subjectID => $grades) {
                                                 $subjectName = isset($subjects[$subjectID]) ? $subjects[$subjectID] : 'Unknown Subject';
                                                 $totalTeachingHours = array_sum($grades);
@@ -1885,7 +1906,7 @@ No. 12580 - Shamiya 71656
                           <?php echo $Grade_4; ?>,
                           <?php echo $Grade_5; ?>,
                           <?php echo $Grade_6; ?>]; 
-            var totals_c = <?php echo $maxHours; ?>;
+            var totals_c = <?php echo $Grade_1+$Grade_2+$Grade_3+$Grade_4+$Grade_5+$Grade_6; ?>;
             var diff = Array.from({ length: totalSchoolSubjects }, () => Array(totalSchoolYears).fill(0));
         </script>
         <script src="./js/extra-script-16.js"></script>
@@ -2092,7 +2113,7 @@ No. 12580 - Shamiya 71656
                 data: {
                     labels: countryLabels,
                     datasets: [{
-                        data: countryDatasets[pyear][psubject], // Default dataset
+                        data: countryDatasets[pyear][psubject].slice(0, 6), // Default dataset
                         backgroundColor: colors,  // Reuse the color array
                         borderColor: colors.map(color => color.replace(/0.8/, '1')), // Reuse the border colors
                         borderWidth: 1

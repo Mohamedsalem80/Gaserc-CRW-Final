@@ -73,7 +73,6 @@ while ($row = $resultSubjects->fetch_assoc()) {
 $stmtSubjects->close();
 
 ksort($subjects);
-
 $_SESSION['subjects'] = $subjects;
 
 // 2. Get all teaching hours for each subject in the country
@@ -132,12 +131,12 @@ ksort($teachingHours);
  */
 
  $specificSubjects = [
-    'Islamic Education',
     'Arabic Language',
     'English Language',
     'Mathematics',
     'Science',
     'Social Studies',
+    'Islamic Education',
     'Physical Education'
 ];
 
@@ -146,12 +145,12 @@ $countryDatasets = [];
 
 // Fetch all relevant subject IDs
 $subjectIds = [];
-$subjectQuery = "SELECT SubjectID, Subject FROM Subjects WHERE Subject IN ('" . implode("', '", $specificSubjects) . "')";
+$subjectQuery = "SELECT SubjectID, Subject_ar FROM Subjects WHERE Subject IN ('" . implode("', '", $specificSubjects) . "')";
 $subjectResult = $conn->query($subjectQuery);
 
 if ($subjectResult->num_rows > 0) {
     while ($subjectRow = $subjectResult->fetch_assoc()) {
-        $subjectIds[$subjectRow['SubjectID']] = $subjectRow['Subject'];
+        $subjectIds[$subjectRow['SubjectID']] = $subjectRow['Subject_ar'];
     }
 }
 
@@ -197,11 +196,19 @@ foreach ($subjectIds as $subjectId => $subjectName) {
 // Structure the final output to match the expected format
 $finalOutput = [];
 foreach ($countryDatasets as $subjectId => $data) {
+    $subjectName = $data['subject_name'];
     foreach ($data as $grade => $hours) {
-        if (!isset($finalOutput[$grade])) {
-            $finalOutput[$grade] = [];
+        if ($grade !== 'subject_name') { // Skip the subject name key
+            if (!isset($finalOutput[$grade])) {
+                $finalOutput[$grade] = [];
+            }
+            // Check if there are any teaching hours, otherwise use a default value
+            if (!empty($hours)) {
+                $finalOutput[$grade][$subjectName] = $hours;
+            } else {
+                $finalOutput[$grade][$subjectName] = 0; // or any default value
+            }
         }
-        $finalOutput[$grade][$data['subject_name']] = $hours;
     }
 }
 
@@ -520,7 +527,7 @@ $conn->close();
                 transition: bottom 0.4s ease;
             }
             .panel_down {
-                bottom: -86px;
+                bottom: -<?php if (isset($_SESSION['job']) && $_SESSION['job'] != 1) { echo "86px"; } else { echo "54px"; } ?>;
             }
             table {
                 border-collapse: collapse !important; /* Ensures no spacing between cells */
@@ -694,72 +701,87 @@ $conn->close();
 	</script>
         <header>
 
-            <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-scrollable" role="document">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="exampleModalLabel">مادة جديدة</h5>
-                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                <span aria-hidden="true">&times;</span>
-                            </button>
-                        </div>
-                        <div class="modal-body">
-                            <form id="addSubForm">
-                                <div class="form-group">
-                                    <label for="subject-name" class="col-form-label">اسم المادة (English):</label>
-                                    <input type="text" class="form-control" id="subject-name">
-                                </div>
-                                <div class="form-group">
-                                    <label for="subject-name-ar" class="col-form-label">اسم المادة:</label>
-                                    <input type="text" class="form-control" id="subject-name-ar">
-                                </div>
-                                
-                                <!-- Grades 1-6 in a single row -->
-                                <div class="form-group">
-                                    <label class="col-form-label">الساعات السنوية للمادة للصفوف 1-6:</label>
-                                    <div class="row">
-                                        <div class="col-md-2">
-                                            <input type="text" class="form-control" placeholder="الصف 1" id="grade1">
-                                        </div>
-                                        <div class="col-md-2">
-                                            <input type="text" class="form-control" placeholder="الصف 2" id="grade2">
-                                        </div>
-                                        <div class="col-md-2">
-                                            <input type="text" class="form-control" placeholder="الصف 3" id="grade3">
-                                        </div>
-                                        <div class="col-md-2">
-                                            <input type="text" class="form-control" placeholder="الصف 4" id="grade4">
-                                        </div>
-                                        <div class="col-md-2">
-                                            <input type="text" class="form-control" placeholder="الصف 5" id="grade5">
-                                        </div>
-                                        <div class="col-md-2">
-                                            <input type="text" class="form-control" placeholder="الصف 6" id="grade6">
-                                        </div>
+        <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-scrollable" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalLabel">مادة جديدة</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addSubForm" action="addsubject.php" method="POST">
+                            <div class="form-group">
+                                <label class="col-form-label">اسم المادة:</label>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <input type="text" class="form-control" name="subjectEnglishName" id="subject-name" placeholder="اسم المادة باللغة الانجليزية">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="text" class="form-control" name="subjectArabicName" id="subject-name" placeholder="اسم المادة باللغة العربية">
                                     </div>
                                 </div>
-            
-                                <div class="form-group">
-                                    <label for="min-hours" class="col-form-label">ساعات الحد الادنى للمادة:</label>
-                                    <input type="text" class="form-control" id="min-hours">
+                            </div>
+                            
+                            <!-- Grades 1-6 in a single row -->
+                            <div class="form-group">
+                                <label class="col-form-label">الساعات السنوية للصفوف 1-9:</label>
+                                <div class="row">
+                                    <div class="col-md-4  mb-1 mb-1">
+                                        <input type="text" class="form-control" placeholder="الصف 1" name="grade1">
+                                    </div>
+                                    <div class="col-md-4  mb-1">
+                                        <input type="text" class="form-control" placeholder="الصف 2" name="grade2">
+                                    </div>
+                                    <div class="col-md-4  mb-1">
+                                        <input type="text" class="form-control" placeholder="الصف 3" name="grade3">
+                                    </div>
+                                    <div class="col-md-4  mb-1">
+                                        <input type="text" class="form-control" placeholder="الصف 4" name="grade4">
+                                    </div>
+                                    <div class="col-md-4  mb-1">
+                                        <input type="text" class="form-control" placeholder="الصف 5" name="grade5">
+                                    </div>
+                                    <div class="col-md-4  mb-1">
+                                        <input type="text" class="form-control" placeholder="الصف 6" name="grade6">
+                                    </div>
+                                    <div class="col-md-4  mb-1">
+                                        <input type="text" class="form-control" placeholder="الصف 7" name="grade7">
+                                    </div>
+                                    <div class="col-md-4  mb-1">
+                                        <input type="text" class="form-control" placeholder="الصف 8" name="grade8">
+                                    </div>
+                                    <div class="col-md-4  mb-1">
+                                        <input type="text" class="form-control" placeholder="الصف 9" name="grade9">
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="max-hours" class="col-form-label">ساعات الحد الاعلى للمادة:</label>
-                                    <input type="text" class="form-control" id="max-hours">
+                            </div>
+                            
+
+                            <div class="form-group">
+                                <label class="col-form-label">الاوزان النسبية للمواد الدراسية:</label>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control" name="minHours" placeholder="الحد الادنى">
+                                    </div>
+                                    <div class="col-md-4">
+                                    <input type="text" class="form-control" name="maxHours" placeholder="الحد الاقصى">
+                                    </div>
+                                    <div class="col-md-4">
+                                    <input type="text" class="form-control" name="avgHours" placeholder="الوزن النسبي">
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="avg-hours" class="col-form-label">الساعات المتوسطة للمادة:</label>
-                                    <input type="text" class="form-control" id="avg-hours">
-                                </div>
-                            </form>
+                            </div>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">اغلق</button>
-                            <button type="button" class="btn btn-primary" data-dismiss="modal" onclick="addSub();">أضف المادة</button>
+                            <button type="submit" class="btn btn-primary">اضف المادة</button>
                         </div>
-                    </div>
+                    </form>
                 </div>
             </div>
+        </div>
 
 	<div class="topline"></div>
 	<div class="top_header">
@@ -782,7 +804,7 @@ $conn->close();
 							</form>
 
 							<span>
-																											<a href="https://www.gaserc.org/locale/en"><img title="English" width="34px" height="38px"
+																											<a href="http://pre-release.test/frontend/dashboard16.php?<?php echo $_SERVER['QUERY_STRING']; ?>"><img title="English" width="34px" height="38px"
 												src="https://www.gaserc.org/admin_assets/assets/media/flags/260-united-kingdom.svg" alt="english"></a>
 																								</span>
 							<div
@@ -993,13 +1015,12 @@ $conn->close();
 
 																								<li><a href="https://www.gaserc.org/locale/en">English</a></li>
 																					</ul>
-					</div>
-				</div>
-			</nav>
-
-		</div>
-	</div>
-</header>
+                        </div>
+                    </div>
+                </nav>
+		    </div>
+	    </div>
+    </header>
         
     <!-- Slider -->
   <div class="container" style="padding:0;">
@@ -1142,15 +1163,38 @@ $conn->close();
                         </div>
                         <div class="container mt-2">
                             <div class="form-group row mb-1">
-                                <label for="inputEmail3" class="col-sm-2 col-form-label">تعديل</label>
+                                <label for="inputEmail3" class="col-sm-2 col-form-label">
+                                <?php
+                                        if (isset($_SESSION['job']) && $_SESSION['job'] != 1) {
+                                            echo "تعديل";
+                                        } else {
+                                            echo "الإجراءات";
+                                        }
+                                    ?>
+                                </label>
                                 <div class="col-sm-10">
+                                    <?php
+                                            if (isset($_SESSION['job']) && $_SESSION['job'] != 1) {
+                                    ?>
                                     <button type="button" class="btn btn-danger" onclick="spinButton2SpinDown();" style="width: 32px;">-</button>
                                     <button type="button" class="btn btn-danger" onclick="spinButton2SpinUp();" style="width: 32px;">+</button>
                                     <button type="button" class="btn btn-secondary ml-5" onclick="ButtonToNeutraliseAnomalies_Click();" style="width: 180px;">تعويض</button>
+                                    <?php
+                                        }
+                                    ?>
                                     <button type="button" class="btn btn-success" onclick="downloadPDF2();" style="width: 132px;">طباعة</button>
+                                    <?php
+                                        if (isset($_SESSION['job']) && $_SESSION['job'] != 1) {
+                                    ?>
                                     <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModal" data-whatever="@mdo" style="width: 150px;">إضافة مادة</button>
+                                    <?php
+                                        }
+                                    ?>
                                 </div>
                             </div>
+                            <?php
+                                if (isset($_SESSION['job']) && $_SESSION['job'] != 1) {
+                            ?>
                             <div class="form-group row" style="margin-bottom: 0;">
                                 <label for="inputEmail3" class="col-sm-2 col-form-label">تعديل-تلقائي</label>
                                 <div class="col-sm-10">
@@ -1161,6 +1205,24 @@ $conn->close();
                                     <button type="button" class="btn btn-danger" onclick="removeSub();" style="width: 150px;">إزالة مادة</button>
                                 </div>
                             </div>
+                            <?php
+                                }
+                            ?>
+                            <form action="delete_subject.php" method="POST" id="rform">
+                                <input type="hidden" name="subjectName" value="" id="rforminp">
+                            </form>
+                            <form action="update_teachinghours.php" method="POST" id="rform2">
+                                <input type="hidden" name="start" value="1">
+                                <input type="hidden" name="end" value="6">
+                                <input type="hidden" name="values" value="" id="rforminp2">
+                            </form>
+                            <form id="pdfForm" action="generate_pdf.php" method="POST" target="_blank" style="display: none;">
+                                <input type="hidden" name="start" value="1">
+                                <input type="hidden" name="end" value="6">
+                                <input type="hidden" name="subjects" id="subjectsField">
+                                <input type="hidden" name="mainMatrix" id="mainMatrixField">
+                                <input type="hidden" name="planningMatrix" id="planningMatrixField">
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -1178,31 +1240,20 @@ $conn->close();
                                 <tbody>
                                     <tr>
                                         <th>عدد الاسابيع</th>
-                                        <td class="numVal" id="noWeeks">38</td>
+                                        <td class="numVal" id="noWeeks"><?php echo $noWeeks; ?></td>
                                     </tr>
                                     <tr>
                                         <th>وقت الحصة (دقيقة)</th>
-                                        <td class="numVal" id="classMints">45</td>
+                                        <td class="numVal" id="classMints"><?php echo $minutesPerClass; ?></td>
                                     </tr>
                                     <tr>
                                         <th>ساعة / سنة</th>
-                                        <td class="numVal" id="incrementPeriodsPerClick">29</td>
+                                        <td class="numVal" id="incrementPeriodsPerClick"><?php echo $noWeeks * $minutesPerClass; ?></td>
                                     </tr>
                                 </tbody>
                             </table>
                             <table class="table" id="historicalTableHead">
                                 <thead>
-                                    <tr>
-                                        <th>دورة</th>
-                                        <th>د1</th>
-                                        <th>د1</th>
-                                        <th>د1</th>
-                                        <th>د2</th>
-                                        <th>د2</th>
-                                        <th>د2</th>
-                                        <th rowspan="2" style="width: 75px;">كلي</th>
-                                        <th rowspan="2" style="width: 75px;">%</th>
-                                    </tr>
                                     <tr>
                                         <th style="width: 330px;">الصف</th>
                                         <th>1</th>
@@ -1211,231 +1262,42 @@ $conn->close();
                                         <th>4</th>
                                         <th>5</th>
                                         <th>6</th>
+                                        <th style="width: 75px;">كلي</th>
+                                        <th style="width: 75px;">%</th>
                                     </tr>
                                 </thead>
                             </table>
                             <table class="table" id="historicalTable">
                                 <tbody>
-                                    <tr>
-                                        <td class="subname">التربية الإسلامية</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numValt">612</td>
-                                        <td class="numValp">8%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">اللغة العربية</td>
-                                        <td class="numVal">263</td>
-                                        <td class="numVal">263</td>
-                                        <td class="numVal">233</td>
-                                        <td class="numVal">204</td>
-                                        <td class="numVal">204</td>
-                                        <td class="numVal">204</td>
-                                        <td class="numValt">1,896</td>
-                                        <td class="numValp">25%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">اللغة الإنجليزية</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numValt">934</td>
-                                        <td class="numValp">12%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">الرياضيات</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numValt">1,314</td>
-                                        <td class="numValp">18%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">العلوم </td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numValt">789</td>
-                                        <td class="numValp">11%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">الدراسات الاجتماعية </td>
-                                        <td class="numVal">29</td>
-                                        <td class="numVal">29</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numValt">644</td>
-                                        <td class="numValp">9%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">التربية البدنية والصحية</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numValt">522</td>
-                                        <td class="numValp">7%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">الفنون</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numValt">615</td>
-                                        <td class="numValp">8%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">المهارات العملية</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">174</td>
-                                        <td class="numValp">2%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">دعم إضافي</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">الاختيار حسب المدرسة</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مواد اختيارية</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مواد جديدة</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مواد متكاملة</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مواد-موضوع </td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">المشاريع والأقراص البينية</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مواد مدمجة</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مادة خاصة 1</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مادة خاصة 2</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مادة خاصة 3</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
+                                <?php 
+                                        foreach ($teachingHours as $subjectID => $grades) {
+                                            // Get the subject name or set it to 'Unknown Subject' if not found
+                                            $subjectName = isset($subjects[$subjectID]) ? $subjects[$subjectID] : 'Unknown Subject';
+                                            
+                                            // Calculate total teaching hours for grades 1 to 6
+                                            $totalTeachingHours = 0;
+                                            for ($grade = 1; $grade <= 6; $grade++) {
+                                                $totalTeachingHours += isset($grades[$grade]) ? $grades[$grade] : 0;
+                                            }
+                                            
+                                            // Calculate percentage based on maxHours for grades 1 to 6
+                                            $percentage = $totalTeachingHours > 0 ? round(($totalTeachingHours / $maxHours) * 100, 0) . '%' : '0%';
+
+                                            echo '<tr>';
+                                            echo '<td class="subname">' . htmlspecialchars($subjectName) . '</td>';
+                                            
+                                            // Output hours for each grade from 1 to 6
+                                            for ($grade = 1; $grade <= 6; $grade++) {
+                                                $hours = isset($grades[$grade]) ? $grades[$grade] : 0;
+                                                echo '<td class="numVal">' . htmlspecialchars($hours) . '</td>';
+                                            }
+
+                                            // Output the total hours and percentage for grades 1 to 6
+                                            echo '<td class="numValt">' . $totalTeachingHours . '</td>';
+                                            echo '<td class="numValp">' . $percentage . '</td>';
+                                            echo '</tr>';
+                                        }
+                                    ?>
                                 </tbody>
                             </table>
                         </div>
@@ -1448,17 +1310,6 @@ $conn->close();
                             <table class="table" id="HypotheticalTableHead">
                                 <thead>
                                     <tr>
-                                        <th>دورة</th>
-                                        <th>د1</th>
-                                        <th>د1</th>
-                                        <th>د1</th>
-                                        <th>د2</th>
-                                        <th>د2</th>
-                                        <th>د2</th>
-                                        <th rowspan="2" style="width: 75px;">كلي</th>
-                                        <th rowspan="2" style="width: 75px;">%</th>
-                                    </tr>
-                                    <tr>
                                         <th style="width: 330px;">الصف</th>
                                         <th>1</th>
                                         <th>2</th>
@@ -1466,6 +1317,8 @@ $conn->close();
                                         <th>4</th>
                                         <th>5</th>
                                         <th>6</th>
+                                        <th style="width: 75px;">كلي</th>
+                                        <th style="width: 75px;">%</th>
                                     </tr>
                                 </thead>
                             </table>
@@ -1473,239 +1326,48 @@ $conn->close();
                                 <tbody>
                                     <tr>
                                         <td style="width: 330px;">وقت التدريس الكلي</td>
-                                        <td class="numVal">730</td>
-                                        <td class="numVal">730</td>
-                                        <td class="numVal">787</td>
-                                        <td class="numVal">876</td>
-                                        <td class="numVal">876</td>
-                                        <td class="numVal">876</td>
-                                        <td class="numValt" style="width: 75px;">4875</td>
+                                        <td class="numVal"><?php echo $Grade_1; ?></td>
+                                        <td class="numVal"><?php echo $Grade_2; ?></td>
+                                        <td class="numVal"><?php echo $Grade_3; ?></td>
+                                        <td class="numVal"><?php echo $Grade_4; ?></td>
+                                        <td class="numVal"><?php echo $Grade_5; ?></td>
+                                        <td class="numVal"><?php echo $Grade_6; ?></td>
+                                        <td class="numValt" style="width: 75px;"><?php echo $Grade_1+$Grade_2+$Grade_3+$Grade_4+$Grade_5+$Grade_6; ?></td>
                                         <td class="numValp" style="width: 75px;">100%</td>
                                     </tr>
                                 </tbody>
                             </table>
                             <table class="table" id="HypotheticalTable">
                                 <tbody>
-                                    <tr>
-                                        <td class="subname">التربية الإسلامية</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numValt">612</td>
-                                        <td class="numValp">8%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">اللغة العربية</td>
-                                        <td class="numVal">263</td>
-                                        <td class="numVal">263</td>
-                                        <td class="numVal">233</td>
-                                        <td class="numVal">204</td>
-                                        <td class="numVal">204</td>
-                                        <td class="numVal">204</td>
-                                        <td class="numValt">1,896</td>
-                                        <td class="numValp">25%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">اللغة الإنجليزية</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numValt">934</td>
-                                        <td class="numValp">12%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">الرياضيات</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numVal">146</td>
-                                        <td class="numValt">1,314</td>
-                                        <td class="numValp">18%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">العلوم </td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numValt">789</td>
-                                        <td class="numValp">11%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">الدراسات الاجتماعية </td>
-                                        <td class="numVal">29</td>
-                                        <td class="numVal">29</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numValt">644</td>
-                                        <td class="numValp">9%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">التربية البدنية والصحية</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numVal">58</td>
-                                        <td class="numValt">522</td>
-                                        <td class="numValp">7%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">الفنون</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numVal">88</td>
-                                        <td class="numValt">615</td>
-                                        <td class="numValp">8%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">المهارات العملية</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">174</td>
-                                        <td class="numValp">2%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">دعم إضافي</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">الاختيار حسب المدرسة</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مواد اختيارية</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مواد جديدة</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مواد متكاملة</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مواد-موضوع </td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">المشاريع والأقراص البينية</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مواد مدمجة</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مادة خاصة 1</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مادة خاصة 2</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="subname">مادة خاصة 3</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numVal">0</td>
-                                        <td class="numValt">0</td>
-                                        <td class="numValp">0%</td>
-                                    </tr>
+                                <?php 
+                                        foreach ($teachingHours as $subjectID => $grades) {
+                                            // Get the subject name or set it to 'Unknown Subject' if not found
+                                            $subjectName = isset($subjects[$subjectID]) ? $subjects[$subjectID] : 'Unknown Subject';
+                                            
+                                            // Calculate total teaching hours for grades 1 to 6
+                                            $totalTeachingHours = 0;
+                                            for ($grade = 1; $grade <= 6; $grade++) {
+                                                $totalTeachingHours += isset($grades[$grade]) ? $grades[$grade] : 0;
+                                            }
+                                            
+                                            // Calculate percentage based on maxHours for grades 1 to 6
+                                            $percentage = $totalTeachingHours > 0 ? round(($totalTeachingHours / $maxHours) * 100, 0) . '%' : '0%';
+
+                                            echo '<tr>';
+                                            echo '<td class="subname">' . htmlspecialchars($subjectName) . '</td>';
+                                            
+                                            // Output hours for each grade from 1 to 6
+                                            for ($grade = 1; $grade <= 6; $grade++) {
+                                                $hours = isset($grades[$grade]) ? $grades[$grade] : 0;
+                                                echo '<td class="numVal">' . htmlspecialchars($hours) . '</td>';
+                                            }
+
+                                            // Output the total hours and percentage for grades 1 to 6
+                                            echo '<td class="numValt">' . $totalTeachingHours . '</td>';
+                                            echo '<td class="numValp">' . $percentage . '</td>';
+                                            echo '</tr>';
+                                        }
+                                    ?>
                                 </tbody>
                             </table>
                         </div>
@@ -1719,16 +1381,6 @@ $conn->close();
                         <table class="table" id="changesHead">
                             <thead>
                                 <tr>
-                                    <th>دورة</th>
-                                    <th>د1</th>
-                                    <th>د1</th>
-                                    <th>د1</th>
-                                    <th>د2</th>
-                                    <th>د2</th>
-                                    <th>د2</th>
-                                    <th rowspan="2" style="width: 75px;">كلي</th>
-                                </tr>
-                                <tr>
                                     <th style="width: 330px;">الصف</th>
                                     <th>1</th>
                                     <th>2</th>
@@ -1736,211 +1388,30 @@ $conn->close();
                                     <th>4</th>
                                     <th>5</th>
                                     <th>6</th>
+                                    <th style="width: 75px;">كلي</th>
                                 </tr>
                             </thead>
                         </table>
                         <table class="table" id="ChangesTable">
                             <tbody>
-                                <tr>
-                                    <td class="subname">التربية الإسلامية</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numValt">58</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">اللغة العربية</td>
-                                    <td class="numVal">263</td>
-                                    <td class="numVal">263</td>
-                                    <td class="numVal">233</td>
-                                    <td class="numVal">204</td>
-                                    <td class="numVal">204</td>
-                                    <td class="numVal">204</td>
-                                    <td class="numValt">204</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">اللغة الإنجليزية</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numVal">146</td>
-                                    <td class="numVal">146</td>
-                                    <td class="numVal">146</td>
-                                    <td class="numValt">146</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">الرياضيات </td>
-                                    <td class="numVal">146</td>
-                                    <td class="numVal">146</td>
-                                    <td class="numVal">146</td>
-                                    <td class="numVal">146</td>
-                                    <td class="numVal">146</td>
-                                    <td class="numVal">146</td>
-                                    <td class="numValt">146</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">العلوم</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numValt">88</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">الدراسات الاجتماعية </td>
-                                    <td class="numVal">29</td>
-                                    <td class="numVal">29</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numValt">88</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">التربية البدنية والصحية</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numVal">58</td>
-                                    <td class="numValt">58</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">الفنون</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numVal">88</td>
-                                    <td class="numValt">88</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">المهارات العملية</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numValt">0</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">دعم إضافي</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numValt">0</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">الاختيار حسب المدرسة</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numValt">0</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">مواد اختيارية</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numValt">0</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">مواد جديدة</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numValt">0</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">مواد متكاملة</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numValt">0</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">مواد-موضوع </td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numValt">0</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">المشاريع والأقراص البينية</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numValt">0</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">مواد مدمجة</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numValt">0</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">مادة خاصة 1</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numValt">0</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">مادة خاصة 2</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numValt">0</td>
-                                </tr>
-                                <tr>
-                                    <td class="subname">مادة خاصة 3</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numVal">0</td>
-                                    <td class="numValt">0</td>
-                                </tr>
+                            <?php 
+                                foreach ($teachingHours as $subjectID => $grades) {
+                                    $subjectName = isset($subjects[$subjectID]) ? $subjects[$subjectID] : 'Unknown Subject';
+                                    $totalTeachingHours = array_sum($grades);
+                                    
+                                    $percentage = $totalTeachingHours > 0 ? round(($totalTeachingHours / $maxHours) * 100, 0) . '%' : '0%';
+                                
+                                    echo '<tr>';
+                                    echo '<td class="subname">' . htmlspecialchars($subjectName) . '</td>';
+                                    
+                                    for ($grade = 1; $grade <= 6; $grade++) {
+                                        $hours = isset($grades[$grade]) ? $grades[$grade] : 0;
+                                        echo '<td class="numVal">' . 0 . '</td>';
+                                    }
+                                    echo '<td class="numValt">' . 0 . '</td>';
+                                    echo '</tr>';
+                                }
+                            ?>
                             </tbody>
                         </table>
                         <table class="table" id="totalAnomaly">
@@ -2000,8 +1471,7 @@ $conn->close();
                         <button class="btn btn-primary custom-btn mx-1" onclick="updateCountryPieChart('الرياضيات')">الرياضيات </button>
                         <button class="btn btn-primary custom-btn mx-1" onclick="updateCountryPieChart('العلوم')">العلوم </button>
                         <button class="btn btn-primary custom-btn mx-1" onclick="updateCountryPieChart('الدراسات الاجتماعية')">الدراسات الاجتماعية</button>
-                        <button class="btn btn-primary custom-btn mx-1" onclick="updateCountryPieChart('التربية البدنية والصحية')">التربية البدنية والصحية</button>
-                        <button class="btn btn-primary custom-btn mx-1" onclick="updateCountryPieChart('الفنون')">الفنون</button>
+                        <button class="btn btn-primary custom-btn mx-1" onclick="updateCountryPieChart('التربية البدنية')">التربية البدنية</button>
                     </div>
                     <div class="btn-group d-flex justify-content-center" role="group" style="margin-top: 4px; direction: ltr;">
                         <button class="btn btn-primary custom-btn mx-1" onclick="setPYear(1)">1</button>
@@ -2389,23 +1859,51 @@ $conn->close();
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
         <script>
-            const totalSchoolYears = 6;
-            const totalSchoolSubjects = 20;
-            let HistoricalHours = Array.from({ length: totalSchoolSubjects }, () => Array(totalSchoolYears).fill(0));
-            let HITV = document.querySelectorAll("#historicalTable .numVal");
-            let indx = 0;
+            function extendArray(arr, desiredLength, fillValue = 0) {
+                if (arr.length < desiredLength) {
+                    arr.length = desiredLength;
+                    arr.fill(fillValue, arr.length - (desiredLength - arr.length));
+                }
+                return arr;
+            }
+
+            var totalSchoolYears = 6;
+            var totalSchoolSubjects = <?php echo count($subjects) ?>;
+            var HistoricalHours = Array.from({ length: totalSchoolSubjects }, () => Array(totalSchoolYears).fill(0));
+            var HistoricalHoursMin = Array.from({ length: totalSchoolSubjects }).fill(0);
+            var HistoricalHoursMax = Array.from({ length: totalSchoolSubjects }).fill(0);
+            var HITV = document.querySelectorAll("#historicalTable .numVal");
+            var indx = 0;
+            var indxv = 0;
             for (let i = 0; i < totalSchoolSubjects; i++) {
                 for (let j = 0; j < totalSchoolYears; j++) {
-                    HistoricalHours[i][j] = parseInt(HITV[indx++].innerText);
+                    indxv = parseInt(HITV[indx++].innerText);
+                    HistoricalHours[i][j] = indxv;
+                    // HistoricalHoursMax[i][j] = (indxv + 87);
+                    // HistoricalHoursMin[i][j] = ((indxv - 87) > 0 ) ? (indxv - 87) : 0;
                 }
             }
-            let AnomaliesEachYear = [0, 0, 0, 0, 0, 0]; 
-            let DesiredTotInstrucTimeEachYear = [730, 730, 787, 876, 876, 876]; 
-            let HypotheticalWeeklyPeriods = HistoricalHours.map(row => [...row]);
-            let HypotheticalHours = HypotheticalWeeklyPeriods;
-            let totals = [730, 730, 787, 876, 876, 876];
-            let totals_c = 4875;
-            let diff = Array.from({ length: totalSchoolSubjects }, () => Array(totalSchoolYears).fill(0));
+            HistoricalHoursMin = <?php echo json_encode($minvalues); ?>;
+            HistoricalHoursMin = extendArray(HistoricalHoursMin, totalSchoolSubjects);
+            HistoricalHoursMax = <?php echo json_encode($maxvalues); ?>;
+            HistoricalHoursMax = extendArray(HistoricalHoursMax, totalSchoolSubjects, <?php echo $maxHours; ?>);
+            var AnomaliesEachYear = [0, 0, 0, 0, 0, 0]; 
+            var DesiredTotInstrucTimeEachYear = [<?php echo $Grade_1; ?>,
+                                                 <?php echo $Grade_2; ?>,
+                                                 <?php echo $Grade_3; ?>,
+                                                 <?php echo $Grade_4; ?>,
+                                                 <?php echo $Grade_5; ?>,
+                                                 <?php echo $Grade_6; ?>];
+            var HypotheticalWeeklyPeriods = HistoricalHours.map(row => [...row]);
+            var HypotheticalHours = HypotheticalWeeklyPeriods;
+            var totals = [<?php echo $Grade_1; ?>,
+                          <?php echo $Grade_2; ?>,
+                          <?php echo $Grade_3; ?>,
+                          <?php echo $Grade_4; ?>,
+                          <?php echo $Grade_5; ?>,
+                          <?php echo $Grade_6; ?>]; 
+            var totals_c = <?php echo $Grade_1+$Grade_2+$Grade_3+$Grade_4+$Grade_5+$Grade_6; ?>;
+            var diff = Array.from({ length: totalSchoolSubjects }, () => Array(totalSchoolYears).fill(0));
         </script>
         <script src="./js/extra-script-16.js"></script>
         <script>
@@ -2437,16 +1935,7 @@ $conn->close();
                     pieDatasets[i][j] = transh[i][j];
                 }
             }
-            const sublabels = [
-                "التربية الإسلامية",
-                "اللغة العربية",
-                "اللغة الإنجليزية",
-                "الرياضيات",
-                "العلوم",
-                "الدراسات الاجتماعية",
-                "التربية البدنية والصحية",
-                "الفنون"
-            ];
+            let sublabels = <?php echo json_encode(array_values($subjects)); ?>;
 
             // Pie chart configuration
             let pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
@@ -2542,7 +2031,7 @@ $conn->close();
                 pieChart.update();
             }
 
-            const countryDatasets = {
+            let countryDatasets = {
                 1: {
                     "التربية الإسلامية": [12, 18, 25, 30, 50, 70, 80],
                     "اللغة العربية": [14, 23, 37, 45, 55, 65, 75],
@@ -2605,14 +2094,16 @@ $conn->close();
                 }
             };
 
+            countryDatasets = <?php echo json_encode($finalOutput); ?>;
+
             // Labels for the country datasets (same for all)
             const countryLabels = [
+                'الامارات',
                 'البحرين',
-                'الكويت',
+                'السعودية',
                 'عمان',
                 'قطر',
-                'السعودية',
-                'الامارات',
+                'الكويت', 
                 'اليمن'
             ];
 
@@ -2633,7 +2124,7 @@ $conn->close();
                 data: {
                     labels: countryLabels,
                     datasets: [{
-                        data: countryDatasets[pyear][psubject], // Default dataset
+                        data: countryDatasets[pyear][psubject].slice(0, 6), // Default dataset
                         backgroundColor: colors,  // Reuse the color array
                         borderColor: colors.map(color => color.replace(/0.8/, '1')), // Reuse the border colors
                         borderWidth: 1
@@ -2643,6 +2134,17 @@ $conn->close();
                     responsive: true
                 }
             });
+            function updateCountryPieChart(subject) {
+                psubject = subject;
+                fullWidthPieChart.data.datasets[0].data = countryDatasets[pyear][subject].slice(0, 6); // Update data
+                fullWidthPieChart.update(); // Re-render the chart
+            }
+
+            function setPYear(num) {
+                pyear = num;
+                fullWidthPieChart.data.datasets[0].data = countryDatasets[num][psubject].slice(0, 6); // Update data
+                fullWidthPieChart.update(); // Re-render the chart
+            }
         </script>            
     </body>
 </html>
