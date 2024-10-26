@@ -1,3 +1,95 @@
+<?php
+
+session_start(); // Start the session
+$error = '';
+// Set the default language
+$_SESSION['lang'] = 'en';
+// Generate CSRF token if not set
+if (empty($_SESSION['ms_csrf_token'])) {
+    $_SESSION['ms_csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// Check if the user is already logged in
+if (isset($_SESSION['email'])) {
+    $lang = ($_SESSION['lang'] == 'en') ? '' : '_ar';
+	if (!isset($_SESSION['stage'])) {
+		header("Location: followup{$lang}.php");
+	}
+    $dashboard = ($_SESSION['stage'] == 1) ? 'dashboard16' : 'dashboard79';
+    header("Location: {$dashboard}{$lang}.php");
+    exit();
+}
+
+// Process the login form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $sessionToken = $_SESSION['ms_csrf_token'] ?? '';
+    $formToken = $_POST['ms_csrf_token'] ?? '';
+    
+    $email = $_POST['email'] ?? '';
+    $password = $_POST['password'] ?? '';
+
+    // Check if the CSRF token is valid
+    if ($sessionToken == $formToken) {
+        unset($_SESSION['ms_csrf_token']); // Prevent token reuse
+
+        // Validate email and password
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) && !empty($password)) {
+            // Database connection parameters
+            $servername = "localhost";
+            $username = "root";
+            $dbpassword = "";
+            $dbname = "gaserc";
+
+            // Connect to the database
+            $conn = new mysqli($servername, $username, $dbpassword, $dbname);
+
+            // Check database connection
+            if ($conn->connect_error) {
+                die("Connection failed: " . $conn->connect_error);
+            }
+
+            // Prepare and execute SQL statement
+            $stmt = $conn->prepare("SELECT userID, password, jobID FROM users WHERE user_email = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $stmt->store_result();
+
+            // Check if the user exists
+            if ($stmt->num_rows > 0) {
+                $stmt->bind_result($userID, $hashedPassword, $jobID);
+                $stmt->fetch();
+
+                // Verify the password
+                $password = hash('sha256', $password);
+
+                if ($password == $hashedPassword) {
+                    // Set session variables upon successful login
+                    $_SESSION['email'] = $email;
+                    $_SESSION['userID'] = $userID;
+                    $_SESSION['job'] = $jobID;
+
+                    // Redirect the user to the dashboard
+                    header("Location: followup.php");
+                    exit();
+                } else {
+                    $error = "Invalid Password.";
+                }
+            } else {
+                $error = "No account found with that email address.";
+            }
+
+            // Close the statement and database connection
+            $stmt->close();
+            $conn->close();
+        } else {
+            $error = "Invalid email or password.";
+        }
+    } else {
+        $error = "Invalid CSRF token.";
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
     <head>
@@ -104,7 +196,7 @@
                                     </button>
                                 </form>
                                 <div>
-                                    <a href="https://www.gaserc.org/locale/ar">
+                                    <a href="http://pre-release.test/frontend/login_ar.php">
                                         <img title="العربية" width="34px" height="38px" src="https://www.gaserc.org/admin_assets/assets/media/flags/107-kwait.svg" alt="arabic">
                                     </a>
                                 </div>
@@ -472,9 +564,18 @@
                         <div class="title_line"></div>
                         <div class="title_dot"></div>
                         <div class="clear30x"></div>
+                        <?php
+                            if (!empty($error)) {
+                                echo '
+                                <div class="alert alert-danger" role="alert">
+                                    <strong>Error!</strong><br />' . htmlspecialchars($error) . '
+                                </div>
+                                <div class="clear30x"></div>';
+                            }
+                        ?>
                         <div class="row news-row text-center">
-                            <form method="POST" action="../backend/register.php">
-                                <input type="hidden" name="_token" value="fD4otBiJZrr7NrAthK5g5D20qNla2negVhRsgGLo" autocomplete="off">
+                            <form method="POST" action="login.php">
+                                <input type="hidden" name="ms_csrf_token" value="<?php if(isset($_SESSION['ms_csrf_token'])) {echo htmlspecialchars($_SESSION['ms_csrf_token']); } ?>" autocomplete="off">
                                 <input required type="email" name="email" placeholder="Enter your email address" onblur="this.placeholder='Enter your email address'" onfocus="this.placeholder='Enter your email address'" class="col-centered center col-9 col-md-9 col-sm-9 news_letter">
                                 <div class="clear20x"></div>
                                 <input required type="password" name="password" placeholder="Enter your password" onblur="this.placeholder='Enter your password'" onfocus="this.placeholder='Enter your password'" class="col-9 col-md-9 col-sm-9 news_letter col-centered center">
@@ -724,7 +825,11 @@ No. 12580 - Shamiya 71656
             </div>
         </footer>
         <!-- Copyright -->
-        <div class="copyright">All rights reserved © The Gulf Arab States Educational Research Center (GASERC) - Kuwait 2023</div>
+        <div class="copyright">
+            All rights reserved © The Gulf Arab States Educational Research Center (GASERC) - Kuwait 2023
+            <br />
+            CARDI, Helwan University, Cairo, Egypt.
+        </div>
         <script src="https://code.jquery.com/jquery-2.2.0.min.js" type="text/javascript"></script>
         <!--slick js-->
         <script type="text/javascript" charset="utf-8" src="https://www.gaserc.org/website_assets/assets/js/slick/slick.js?v-hash=936708f"></script>

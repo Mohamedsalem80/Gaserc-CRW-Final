@@ -1,3 +1,39 @@
+<?php
+session_start();
+
+$_SESSION['lang'] = 'en';
+
+if (empty($_SESSION['ms_csrf_token_2'])) {
+    $_SESSION['ms_csrf_token_2'] = bin2hex(random_bytes(32));
+}
+
+if (!isset($_SESSION['userID']) || 
+    !isset($_SESSION['job']) || 
+    !isset($_SESSION['email'])) {
+    header("Location: login.php");
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $sessionToken = $_SESSION['ms_csrf_token_2'] ?? '';
+    $formToken = $_POST['ms_csrf_token_2'] ?? '';
+    if ($sessionToken == $formToken) {
+        unset($_SESSION['ms_csrf_token_2']);
+        $country = isset($_POST['country']) ? $_POST['country'] : '';
+        $grade = isset($_POST['stage']) ? $_POST['stage'] : '';
+
+        if (!empty($country) && !empty($grade)) {
+            $_SESSION['country'] = $country;
+            $_SESSION['stage'] = (int)$grade;
+            $lang = ($_SESSION['lang'] == 'en') ? '' : '_ar';
+            $dashboard = ($grade == 1) ? 'dashboard16' : 'dashboard79';
+            header("Location: {$dashboard}{$lang}.php");
+        }
+    }
+}
+
+?>
+
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
     <head>
@@ -331,7 +367,7 @@
                                     </button>
                                 </form>
                                 <div>
-                                    <a href="https://www.gaserc.org/locale/ar">
+                                    <a href="followup_ar.php">
                                         <img title="العربية" width="34px" height="38px" src="https://www.gaserc.org/admin_assets/assets/media/flags/107-kwait.svg" alt="arabic">
                                     </a>
                                 </div>
@@ -704,17 +740,12 @@
                         <div class="stepper text-center">
                             <div class="step actived" data-step="1"> <i class="fa fa-globe" aria-hidden="true"></i> </div>
                             <div class="line"></div>
-                            <div class="step" data-step="2"> <i class="fa fa-briefcase" aria-hidden="true"></i> </div>
-                            <div class="line"></div>
                             <div class="step" data-step="3"> <i class="fa fa-users" aria-hidden="true"></i> </div>
-                            <div class="line"></div>
-                            <div class="step" data-step="4"> <i class="fa fa-sort-numeric-asc" aria-hidden="true"></i> </div>
-                            <div class="line"></div>
-                            <div class="step" data-step="5"> <i class="fa fa-book" aria-hidden="true"></i> </div>
                         </div>
         
                         <!-- Form Steps -->
-                        <form id="multiStepForm" method="GET" action="../backend/followup.php">        
+                        <form id="multiStepForm" method="POST" action="followup.php">
+                            <input type="hidden" name="ms_csrf_token_2" value="<?php if(isset($_SESSION['ms_csrf_token_2'])) {echo htmlspecialchars($_SESSION['ms_csrf_token_2']); } ?>" autocomplete="off">
                             <!-- Step 1 -->
                             <div class="col-centered center col-9 col-md-9 col-sm-9 form-step actived" data-step="1">
                                 <div class="col-centered center col-9 col-md-9 col-sm-9 h4 p-2">
@@ -771,84 +802,24 @@
                                     <option value="Yemen" id="Yemen"> Yemen </option>
                                 </select>
                                 <div class="navigation-buttons col-centered center col-9 col-md-9 col-sm-9">
-                                    <button type="button" class="prev-step col-4 col-md-4 col-sm-4">Cancel</button>
+                                    <button type="button" class="prev-step col-4 col-md-4 col-sm-4" id="resetButton">Cancel</button>
                                     <button type="button" class="next-step bg-primary col-4 col-md-4 col-sm-4">Next</button>
                                 </div>
                             </div>
-        
                             <!-- Step 2 -->
                             <div class="col-centered center col-9 col-md-9 col-sm-9 form-step" data-step="2">
-                                <div class="col-centered center col-9 col-md-9 col-sm-9 h4 p-2">
-                                    Select Job
-                                </div>
-                                <img src="./images/undraw_Educator_re_ju47.png" alt="" class="prog-img">
-                                <select class="custom-select col-centered center col-9 col-md-9 col-sm-9" name="job">
-                                    <option disabled selected value="">Choose your Job</option>
-                                    <option value="1"> Teacher </option>
-                                    <option value="2"> School Principal </option>
-                                    <option value="3"> Subject Supervisor </option>
-                                    <option value="3"> Local Authority Official  </option>
-                                    <option value="3"> Ministry Official </option>
-                                </select>
-                                <div class="navigation-buttons col-centered center col-9 col-md-9 col-sm-9">
-                                    <button type="button" class="prev-step">Previous</button>
-                                    <button type="button" class="next-step bg-primary">Next</button>
-                                </div>
-                            </div>
-        
-                            <!-- Step 3 -->
-                            <div class="col-centered center col-9 col-md-9 col-sm-9 form-step" data-step="3">
                                 <div class="col-centered center col-9 col-md-9 col-sm-9 h4 p-2">
                                     Select Stage
                                 </div>
                                 <img src="./images/undraw_Small_town_re_7mcn.png" alt="" class="prog-img">
-                                <select class="custom-select col-centered center col-9 col-md-9 col-sm-9" name="grade" id="grade">
+                                <select class="custom-select col-centered center col-9 col-md-9 col-sm-9" name="stage" id="stage">
                                     <option disabled selected value="">Choose your Stage</option>
                                     <option value="1"> Primary </option>
                                     <option value="2"> Middle </option>
                                 </select>
                                 <div class="navigation-buttons col-centered center col-9 col-md-9 col-sm-9">
                                     <button type="button" class="prev-step">Previous</button>
-                                    <button type="button" class="next-step bg-primary">Next</button>
-                                </div>
-                            </div>
-        
-                            <!-- Step 4 -->
-                            <div class="col-centered center col-9 col-md-9 col-sm-9 form-step" data-step="4">
-                                <div class="col-centered center col-9 col-md-9 col-sm-9 h4 p-2">
-                                    Select Grade
-                                </div>
-                                <img src="./images/undraw_search_app_oso2.png" alt="" class="prog-img">
-                                <select class="custom-select col-centered center col-9 col-md-9 col-sm-9" name="year">
-                                    <option disabled selected value="">Choose your Grade</option>
-                                    <option value="1"> 1 </option>
-                                    <option value="2"> 2 </option>
-                                    <option value="3"> 3 </option>
-                                    <option value="4" class="opt-e"> 4 </option>
-                                    <option value="5" class="opt-e"> 5 </option>
-                                    <option value="6" class="opt-e"> 6 </option>
-                                </select>
-                                <div class="navigation-buttons col-centered center col-9 col-md-9 col-sm-9">
-                                    <button type="button" class="prev-step">Previous</button>
-                                    <button type="button" class="next-step bg-primary">Next</button>
-                                </div>
-                            </div>
-        
-                            <!-- Step 5 -->
-                            <div class="col-centered center col-9 col-md-9 col-sm-9 form-step" data-step="5">
-                                <div class="col-centered center col-9 col-md-9 col-sm-9 h4 p-2">
-                                    Select Subject
-                                </div>
-                                <img src="./images/undraw_Environmental_study_re_q4q8.png" alt="" class="prog-img">
-                                <select class="custom-select col-centered center col-9 col-md-9 col-sm-9" name="subject">
-                                    <option disabled selected value="">Choose your Subject</option>
-                                    <option value="1">Subject 1</option>
-                                    <option value="2">Subject 2</option>
-                                    <option value="3">Subject 3</option>
-                                </select>
-                                <div class="navigation-buttons col-centered center col-9 col-md-9 col-sm-9">
-                                    <button type="button" class="prev-step">Previous</button>
-                                    <button type="submit" class="next-step bg-primary"> Calc </button>
+                                    <button type="submits" class="next-step bg-primary">Calc</button>
                                 </div>
                             </div>
                         </form>
@@ -1095,7 +1066,11 @@ No. 12580 - Shamiya 71656
             </div>
         </footer>
         <!-- Copyright -->
-        <div class="copyright">All rights reserved © The Gulf Arab States Educational Research Center (GASERC) - Kuwait 2023</div>
+        <div class="copyright">
+            All rights reserved © The Gulf Arab States Educational Research Center (GASERC) - Kuwait 2023
+            <br />
+            CARDI, Helwan University, Cairo, Egypt.
+        </div>
         <script src="https://code.jquery.com/jquery-2.2.0.min.js" type="text/javascript"></script>
         <!--slick js-->
         <script type="text/javascript" charset="utf-8" src="https://www.gaserc.org/website_assets/assets/js/slick/slick.js?v-hash=936708f"></script>
@@ -1248,8 +1223,8 @@ No. 12580 - Shamiya 71656
                 }
 
                 document.querySelectorAll('.next-step').forEach(button => {
-                    button.addEventListener('click', () => {
-                        console.log(currentStep);
+                    button.addEventListener('click', (e) => {
+                        e.preventDefault();
                         switch (currentStep) {
                             case 0:
                                 if (document.querySelector("[name='country']").value === "") {
@@ -1258,30 +1233,13 @@ No. 12580 - Shamiya 71656
                                 }
                                 break;
                             case 1:
-                                if (document.querySelector("[name='job']").value === "") {
-                                    $.notify("Please select job title before continuing", { className: "error", position: "top right" });
+                                if (document.querySelector("[name='stage']").value === "") {
+                                    $.notify("Please select stage before continuing", { className: "error", position: "top right" });
                                     return;
+                                } else {
+                                    document.getElementById('multiStepForm').submit();
                                 }
                                 break;
-                            case 2:
-                                if (document.querySelector("[name='grade']").value === "") {
-                                    $.notify("Please select grade before continuing", { className: "error", position: "top right" });
-                                    return;
-                                }
-                                break;
-                            case 3:
-                                if (document.querySelector("[name='year']").value === "") {
-                                    $.notify("Please select year before continuing", { className: "error", position: "top right" });
-                                    return;
-                                }
-                                break;
-                            case 4:
-                                if (document.querySelector("[name='subject']").value === "") {
-                                    $.notify("Please select subject before continuing", { className: "error", position: "top right" });
-                                    return;
-                                }
-                                break;
-                        
                             default:
                                 break;
                         }
@@ -1465,6 +1423,10 @@ No. 12580 - Shamiya 71656
                 updateViewBox();
                 let mulForm = document.getElementById("multiStepForm");
                 let  opt_e = document.querySelectorAll(".opt-e");
+                document.getElementById("resetButton").onclick = function() {
+                    document.getElementById("country_select").selectedIndex = 0; // Reset country selection
+                    document.getElementById("grade").selectedIndex = 0; // Reset grade selection
+                };
                 // document.getElementById("grade").addEventListener("change", function(e){
                 //     if (e.target.value == "1") {
                 //         mulForm.action = "dashboard16.html";

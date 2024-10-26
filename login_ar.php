@@ -1,3 +1,98 @@
+<?php
+
+session_start(); // Start the session
+$error = '';
+// Set the default language
+$_SESSION['lang'] = 'ar';
+
+// Generate CSRF token if not set
+if (empty($_SESSION['ms_csrf_token'])) {
+    $_SESSION['ms_csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// Check if the user is already logged in
+if (isset($_SESSION['user_email'])) {
+    $lang = ($_SESSION['lang'] == 'en') ? '' : '_ar';
+	if (!isset($_SESSION['stage'])) {
+		header("Location: followup{$lang}.php");
+	}
+    $dashboard = ($_SESSION['stage'] == 1) ? 'dashboard16' : 'dashboard79';
+    header("Location: {$dashboard}{$lang}.php");
+    exit();
+}
+
+// Process the login form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $sessionToken = $_SESSION['ms_csrf_token'] ?? '';
+    $formToken = $_POST['ms_csrf_token'] ?? '';
+    
+    $email = $_POST['email'] ?? '';
+    $password = $_POST['password'] ?? '';
+
+    // Check if the CSRF token is valid
+    if ($sessionToken == $formToken) {
+        unset($_SESSION['ms_csrf_token']); // Prevent token reuse
+
+        // Validate email and password
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) && !empty($password)) {
+            // Database connection parameters
+            $servername = "localhost";
+            $username = "root";
+            $dbpassword = "";
+            $dbname = "gaserc";
+
+            // Connect to the database
+            $conn = new mysqli($servername, $username, $dbpassword, $dbname);
+
+            // Check database connection
+            if ($conn->connect_error) {
+                die("Connection failed: " . $conn->connect_error);
+            }
+
+            // Prepare and execute SQL statement
+            $stmt = $conn->prepare("SELECT userID, password, jobID FROM users WHERE user_email = ?");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $stmt->store_result();
+
+            // Check if the user exists
+            if ($stmt->num_rows > 0) {
+                $stmt->bind_result($userID, $hashedPassword, $jobID);
+                $stmt->fetch();
+
+                // Verify the password
+                $password = hash('sha256', $password);
+                echo $password;
+                echo '<br />';
+                echo $hashedPassword;
+                if ($password == $hashedPassword) {
+                    // Set session variables upon successful login
+                    $_SESSION['user_email'] = $email;
+                    $_SESSION['userID'] = $userID;
+                    $_SESSION['job'] = $jobID;
+
+                    // Redirect the user to the dashboard
+                    header("Location: followup.php");
+                    exit();
+                } else {
+                    $error = "كلمة السر غير صحيحة";
+                }
+            } else {
+                $error = "لا يوجد حساب بهذا البريد الالكتروني";
+            }
+
+            // Close the statement and database connection
+            $stmt->close();
+            $conn->close();
+        } else {
+            $error = "البريد الالكتروني او كلمة السر غير صحيح";
+        }
+    } else {
+        $error = "رمز CSRF غير صالح";
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 
@@ -120,7 +215,7 @@
 							</form>
 
 							<span>
-																											<a href="https://www.gaserc.org/locale/en"><img title="English" width="34px" height="38px"
+																											<a href="http://pre-release.test/frontend/login.php"><img title="English" width="34px" height="38px"
 												src="https://www.gaserc.org/admin_assets/assets/media/flags/260-united-kingdom.svg" alt="english"></a>
 																								</span>
 							<div
@@ -474,9 +569,18 @@
                     <div class="title_line"></div>
                     <div class="title_dot"></div>
                     <div class="clear30x"></div>
+					<?php
+                            if (!empty($error)) {
+                                echo '
+                                <div class="alert alert-danger" role="alert">
+                                    <strong>خطأ!</strong><br />' . htmlspecialchars($error) . '
+                                </div>
+                                <div class="clear30x"></div>';
+                            }
+                        ?>
                     <div class="row news-row text-center">
-                        <form method="POST" action="../backend/register.php">
-                            <input type="hidden" name="_token" value="fD4otBiJZrr7NrAthK5g5D20qNla2negVhRsgGLo" autocomplete="off">
+                        <form method="POST" action="login_ar.php">
+                            <input type="hidden" name="ms_csrf_token" value="<?php if(isset($_SESSION['ms_csrf_token'])) {echo htmlspecialchars($_SESSION['ms_csrf_token']); } ?>" autocomplete="off">
                             <input type="email" name="name" placeholder="أدخل بريدك الالكتروني"
 							onblur="this.placeholder='أدخل بريدك الالكتروني'"
 							onfocus="this.placeholder='أدخل بريدك الالكتروني'" class="news_letter news_letter_width" required>
@@ -717,7 +821,11 @@
 
 
 <!-- Copyright -->
-<div class="copyright"> جميع الحقوق محفوظة © للمركز العربي للبحوث التربوية لدول الخليج - الكويت 2023</div>
+<div class="copyright">
+	جميع الحقوق محفوظة © للمركز العربي للبحوث التربوية لدول الخليج - الكويت 2023
+	<br />
+	مركز CARDI، جامعة حلوان، القاهرة، مصر.
+</div>
     <script src="https://code.jquery.com/jquery-2.2.0.min.js" type="text/javascript"></script>
 
 <!--slick js-->

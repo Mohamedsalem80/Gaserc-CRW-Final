@@ -12,29 +12,16 @@ if ($conn->connect_error) {
 
 session_start();
 
-if (isset($_GET['country'])) {
-    $_SESSION['country'] = $_GET['country'];
+if (!isset($_SESSION['userID']) || 
+    !isset($_SESSION['job']) || 
+    !isset($_SESSION['country']) || 
+    !isset($_SESSION['stage']) || 
+    !isset($_SESSION['email'])) {
+    header("Location: login.php");
+    exit();
 }
 
-if (isset($_GET['job'])) {
-    $_SESSION['job'] = $_GET['job'];
-}
-
-if (isset($_GET['grade'])) {
-    $_SESSION['grade'] = $_GET['grade'];
-}
-
-if (isset($_GET['year'])) {
-    $_SESSION['year'] = $_GET['year'];
-}
-
-if (isset($_GET['subject'])) {
-    $_SESSION['subject'] = $_GET['subject'];
-}
-
-if (isset($_GET['country'])) {
-    $_SESSION['country'] = $_GET['country'];
-}
+$_SESSION['lang'] = 'en';
 
 $country = $_SESSION['country'];
 
@@ -782,7 +769,7 @@ $conn->close();
                                     </button>
                                 </form>
                                 <div>
-                                    <a href="http://pre-release.test/frontend/dashboard16_ar.php?<?php echo $_SERVER['QUERY_STRING']; ?>">
+                                    <a href="http://pre-release.test/frontend/dashboard16_ar.php">
                                         <img title="العربية" width="34px" height="38px" src="https://www.gaserc.org/admin_assets/assets/media/flags/107-kwait.svg" alt="arabic">
                                     </a>
                                 </div>
@@ -1477,6 +1464,17 @@ $conn->close();
                     </div>
                 </div>
             </div>
+            <div class="clear30x"></div>
+            <div class="container">
+                <div class="row text-center">
+                    <div class="col">
+                        <!-- Logout Button -->
+                        <a href="logout.php" class="btn btn-danger btn-margin">Logout</a>
+                        <!-- Follow Up Button -->
+                        <a href="followup.php" class="btn btn-primary"> Back to Follow Up</a>
+                    </div>
+                </div>
+            </div>
         </section>
         <!-- Latest Books -->
         <section class="gray_bg mb-40 scroll-element js-scroll fade-in-bottom" dir='ltr'>
@@ -1715,7 +1713,11 @@ No. 12580 - Shamiya 71656
             </div>
         </footer>
         <!-- Copyright -->
-        <div class="copyright">All rights reserved © The Gulf Arab States Educational Research Center (GASERC) - Kuwait 2023</div>
+        <div class="copyright">
+            All rights reserved © The Gulf Arab States Educational Research Center (GASERC) - Kuwait 2023
+            <br />
+            CARDI, Helwan University, Cairo, Egypt.
+        </div>
         <script src="https://code.jquery.com/jquery-2.2.0.min.js" type="text/javascript"></script>
         <!--slick js-->
         <script type="text/javascript" charset="utf-8" src="https://www.gaserc.org/website_assets/assets/js/slick/slick.js?v-hash=936708f"></script>
@@ -1723,13 +1725,8 @@ No. 12580 - Shamiya 71656
         <script src="https://www.gaserc.org/website_assets/assets/js/slider/custom.js?v-hash=936708f"></script>
         <script type="text/javascript">
             $(document).on('ready', function() {
-                const _URL_currentUrl = window.location.href;
-                const _URL_urlObj = new URL(_URL_currentUrl);
-                const _URL_country = _URL_urlObj.searchParams.get('country');
-                const _URL_grade = _URL_urlObj.searchParams.get('grade');
-                const _URL_year = _URL_urlObj.searchParams.get('year');
-
                 const _URL_img = document.getElementById("country_flag");
+                const _URL_country = <?php echo json_encode($_SESSION['country']); ?>;
                 _URL_img.src = `./images/Flag_of_${_URL_country.replaceAll(" ", "_")}.png`;
                 $('.responsive').slick({
                     dots: false,

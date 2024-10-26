@@ -21,7 +21,7 @@ $subjects = $_SESSION['subjects'];
 // Retrieve the annual hours and start/end from the POST request
 $arrayData = $_POST['values'];
 $start = isset($_POST['start']) ? (int)$_POST['start'] : 0; // Default to 0 if not set
-$end = isset($_POST['end']) ? (int)$_POST['end'] : 6; // Default to 6 if not set
+$end = isset($_POST['end']) ? (int)$_POST['end'] : 9; // Default to 9 if not set
 $annualHours = json_decode($arrayData, true);
 // Check if annualHours is an array
 if (!is_array($annualHours)) {
@@ -34,7 +34,7 @@ if (!is_array($annualHours)) {
 $counter = 0;
 foreach ($subjects as $index => $subjectName) {
     // Loop through each grade based on the provided start and end
-    for ($gradeID = $start; $gradeID < $end; $gradeID++) {
+    for ($gradeID = $start; $gradeID <= $end; $gradeID++) {
         // Prepare the update SQL query
         $updatesql = "UPDATE TeachingHours SET AnnualHours = ? WHERE CountryID = ? AND SubjectID = ? AND GradeID = ?";
         $updatestmt = $conn->prepare($updatesql);
@@ -46,7 +46,7 @@ foreach ($subjects as $index => $subjectName) {
         }
 
         // Get the annual hours for the current subject and grade
-        $annualHour = $annualHours[$counter][$gradeID - 1]; // Access based on the 0-based index
+        $annualHour = $annualHours[$counter][$gradeID - $start]; // Access based on the 0-based index
 
         // Bind parameters and execute the update
         $updatestmt->bind_param("iiii", $annualHour, $country, $index, $gradeID); // gradeID + 1 to match your 1-based ID

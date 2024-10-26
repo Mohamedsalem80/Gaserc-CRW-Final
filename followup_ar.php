@@ -1,3 +1,39 @@
+<?php
+session_start();
+
+$_SESSION['lang'] = 'ar';
+
+if (empty($_SESSION['ms_csrf_token_2'])) {
+    $_SESSION['ms_csrf_token_2'] = bin2hex(random_bytes(32));
+}
+
+if (!isset($_SESSION['userID']) || 
+    !isset($_SESSION['job']) || 
+    !isset($_SESSION['email'])) {
+    header("Location: login.php");
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $sessionToken = $_SESSION['ms_csrf_token_2'] ?? '';
+    $formToken = $_POST['ms_csrf_token_2'] ?? '';
+    if ($sessionToken == $formToken) {
+        unset($_SESSION['ms_csrf_token_2']);
+        $country = isset($_POST['country']) ? $_POST['country'] : '';
+        $grade = isset($_POST['stage']) ? $_POST['stage'] : '';
+
+        if (!empty($country) && !empty($grade)) {
+            $_SESSION['country'] = $country;
+            $_SESSION['stage'] = (int)$grade;
+            $lang = ($_SESSION['lang'] == 'en') ? '' : '_ar';
+            $dashboard = ($grade == 1) ? 'dashboard16' : 'dashboard79';
+            header("Location: {$dashboard}{$lang}.php");
+        }
+    }
+}
+
+?>
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 
@@ -370,7 +406,7 @@
 							</form>
 
 							<span>
-																											<a href="https://www.gaserc.org/locale/en"><img title="English" width="34px" height="38px"
+																											<a href="followup.php"><img title="English" width="34px" height="38px"
 												src="https://www.gaserc.org/admin_assets/assets/media/flags/260-united-kingdom.svg" alt="english"></a>
 																								</span>
 							<div
@@ -730,17 +766,12 @@
                     <div class="stepper text-center">
                         <div class="step actived" data-step="1"> <i class="fa fa-globe" aria-hidden="true"></i> </div>
                         <div class="line"></div>
-                        <div class="step" data-step="2"> <i class="fa fa-briefcase" aria-hidden="true"></i> </div>
-                        <div class="line"></div>
                         <div class="step" data-step="3"> <i class="fa fa-users" aria-hidden="true"></i> </div>
-                        <div class="line"></div>
-                        <div class="step" data-step="4"> <i class="fa fa-sort-numeric-asc" aria-hidden="true"></i> </div>
-                        <div class="line"></div>
-                        <div class="step" data-step="5"> <i class="fa fa-book" aria-hidden="true"></i> </div>
                     </div>
     
                     <!-- Form Steps -->
-                    <form id="multiStepForm" method="GET" action="../backend/followup.php">        
+                    <form id="multiStepForm" method="POST" action="followup_ar.php">     
+                    <input type="hidden" name="ms_csrf_token_2" value="<?php if(isset($_SESSION['ms_csrf_token_2'])) {echo htmlspecialchars($_SESSION['ms_csrf_token_2']); } ?>" autocomplete="off">
                         <!-- Step 1 -->
                         <div class="col-centered center col-9 col-md-9 col-sm-9 form-step actived" data-step="1">
                             <div class="col-centered center col-9 col-md-9 col-sm-9 h4 p-2">
@@ -803,78 +834,19 @@
                         </div>
     
                         <!-- Step 2 -->
-                        <div class="col-centered center col-9 col-md-9 col-sm-9 form-step" data-step="2">
-                            <div class="col-centered center col-9 col-md-9 col-sm-9 h4 p-2">
-                                اختر الوظيفة
-                            </div>
-                            <img src="./images/undraw_Educator_re_ju47.png" alt="" class="prog-img">
-                            <select class="custom-select col-centered center col-9 col-md-9 col-sm-9" name="job">
-                                <option disabled selected value="">اختر وظيفتك</option>
-                                <option value="1"> مسؤول وزاري </option>
-                                <option value="2"> مدير مدرسة </option>
-                                <option value="3"> موجه المادة </option>
-                                <option value="3"> مسئول المنطقة التعليمية  </option>
-                                <option value="3"> وزير </option>
-                            </select>
-                            <div class="navigation-buttons col-centered center col-9 col-md-9 col-sm-9">
-                                <button type="button" class="prev-step">السابق</button>
-                                <button type="button" class="next-step bg-primary">التالي</button>
-                            </div>
-                        </div>
-    
-                        <!-- Step 3 -->
                         <div class="col-centered center col-9 col-md-9 col-sm-9 form-step" data-step="3">
                             <div class="col-centered center col-9 col-md-9 col-sm-9 h4 p-2">
                                 اهتر المرحلة
                             </div>
                             <img src="./images/undraw_Small_town_re_7mcn.png" alt="" class="prog-img">
-                            <select class="custom-select col-centered center col-9 col-md-9 col-sm-9" name="grade" id="grade">
+                            <select class="custom-select col-centered center col-9 col-md-9 col-sm-9" name="stage" id="stage">
                                 <option disabled selected value=""> اختر المرحلة الدراسية </option>
                                 <option value="1"> الابتدائية </option>
                                 <option value="2"> المتوسطة </option>
                             </select>
                             <div class="navigation-buttons col-centered center col-9 col-md-9 col-sm-9">
                                 <button type="button" class="prev-step">السابق</button>
-                                <button type="button" class="next-step bg-primary">التالي</button>
-                            </div>
-                        </div>
-    
-                        <!-- Step 4 -->
-                        <div class="col-centered center col-9 col-md-9 col-sm-9 form-step" data-step="4">
-                            <div class="col-centered center col-9 col-md-9 col-sm-9 h4 p-2">
-                                اختر السنة الدراسية
-                            </div>
-                            <img src="./images/undraw_search_app_oso2.png" alt="" class="prog-img">
-                            <select class="custom-select col-centered center col-9 col-md-9 col-sm-9" name="year">
-                                <option disabled selected value="">اختر السنة الدراسية</option>
-                                <option value="1"> 1 </option>
-                                <option value="2"> 2 </option>
-                                <option value="3"> 3 </option>
-                                <option value="4" class="opt-e"> 4 </option>
-                                <option value="5" class="opt-e"> 5 </option>
-                                <option value="6" class="opt-e"> 6 </option>
-                            </select>
-                            <div class="navigation-buttons col-centered center col-9 col-md-9 col-sm-9">
-                                <button type="button" class="prev-step">السابق</button>
-                                <button type="button" class="next-step bg-primary">التالي</button>
-                            </div>
-                        </div>
-    
-                        <!-- Step 5 -->
-                        <div class="col-centered center col-9 col-md-9 col-sm-9 form-step" data-step="5">
-                            <div class="col-centered center col-9 col-md-9 col-sm-9 h4 p-2">
-                                اختر المادة
-                            </div>
-                            <img src="./images/undraw_Environmental_study_re_q4q8.png" alt="" class="prog-img">
-                            <select class="custom-select col-centered center col-9 col-md-9 col-sm-9" name="subject">
-                                <option disabled selected value="">اختر المادة الدراسية</option>
-                                <option value="1"> مادة 1</option>
-                                <option value="2"> مادة 2</option>
-                                <option value="3"> مادة 3</option>
-                            </select>
-                            <div class="navigation-buttons col-centered center col-9 col-md-9 col-sm-9">
-                                <button type="button" class="prev-step">السابق</button>
-                                <button type="submit" class="next-step bg-primary"> احسب </button>
+                                <button type="button" class="next-step bg-primary">حساب</button>
                             </div>
                         </div>
                     </form>
@@ -1110,7 +1082,11 @@
 
 
 <!-- Copyright -->
-<div class="copyright"> جميع الحقوق محفوظة © للمركز العربي للبحوث التربوية لدول الخليج - الكويت 2023</div>
+<div class="copyright">
+	جميع الحقوق محفوظة © للمركز العربي للبحوث التربوية لدول الخليج - الكويت 2023
+	<br />
+	مركز CARDI، جامعة حلوان، القاهرة، مصر.
+</div>
     <script src="https://code.jquery.com/jquery-2.2.0.min.js" type="text/javascript"></script>
 
 <!--slick js-->
@@ -1276,27 +1252,11 @@
                         }
                         break;
                     case 1:
-                        if (document.querySelector("[name='job']").value === "") {
-                            $.notify("من فضلك اختر الوظيفة قبل الاكمال", { className: "error", position: "top left" });
-                            return;
-                        }
-                        break;
-                    case 2:
-                        if (document.querySelector("[name='grade']").value === "") {
+                        if (document.querySelector("[name='stage']").value === "") {
                             $.notify("من فضلك اختر المرحلة الدراسية قبل الاكمال", { className: "error", position: "top left" });
                             return;
-                        }
-                        break;
-                    case 3:
-                        if (document.querySelector("[name='year']").value === "") {
-                            $.notify("من فضلك اختر السنة الدراسية قبل الاكمال", { className: "error", position: "top left" });
-                            return;
-                        }
-                        break;
-                    case 4:
-                        if (document.querySelector("[name='subject']").value === "") {
-                            $.notify("من فضلك اختر المادة قبل الاكمال", { className: "error", position: "top left" });
-                            return;
+                        } else {
+                            document.getElementById('multiStepForm').submit();
                         }
                         break;
                 
@@ -1483,6 +1443,10 @@
         updateViewBox();
         let mulForm = document.getElementById("multiStepForm");
         let  opt_e = document.querySelectorAll(".opt-e");
+        document.getElementById("resetButton").onclick = function() {
+            document.getElementById("country_select").selectedIndex = 0; // Reset country selection
+            document.getElementById("stage").selectedIndex = 0; // Reset stage selection
+        };
         // document.getElementById("grade").addEventListener("change", function(e){
         //     if (e.target.value == "1") {
         //         mulForm.action = "dashboard16_ar.html";
