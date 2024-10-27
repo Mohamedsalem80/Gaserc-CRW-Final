@@ -6,6 +6,22 @@ function updatePieChart(a) {
     return a;
 }
 
+function findMinValueAndIndex(array) {
+    return array.reduce(
+        (acc, currentValue, currentIndex) => 
+            currentValue < acc.min ? { min: currentValue, index: currentIndex } : acc,
+        { min: array[0], index: 0 }
+    );
+}
+
+function findMaxValueAndIndex(array) {
+    return array.reduce(
+        (acc, currentValue, currentIndex) => 
+            currentValue > acc.max ? { max: currentValue, index: currentIndex } : acc,
+        { max: array[0], index: 0 }
+    );
+}
+
 // Function to get the active cell in the table
 function getActiveCell() {
     const activeCell = document.querySelector('.numVal.active');
@@ -135,29 +151,40 @@ function updateChanges() {
 
 function ButtonToNeutraliseAnomalies_Click() {
     updateHypothetical();
+    updateAnomaliesEachYear();
+    let IncrementPeriodsPerClick = getIncrementPeriodsPerClick();
     let Nrcols = totalSchoolYears;
-    let NrRows = totalSchoolSubjects;
+    let NrRows = specificSubjects.length;
     let Tempo = new Array(NrRows).fill(0);
     let selCell = getActiveCell();
     let thisSchoolYear = selCell.column - 1;
     let thisSubjectNr = selCell.row; 
 
     for (let thiscolumn = 0; thiscolumn < Nrcols; thiscolumn++) {
-        if (AnomaliesEachYear[thiscolumn] == 0) {
+        if (AnomaliesEachYear[thiscolumn] < IncrementPeriodsPerClick) {
             continue;
         }
         
-        let SumOfColumn = DesiredTotInstrucTimeEachYear[thiscolumn] + AnomaliesEachYear[thiscolumn];
+        let anIncrement = AnomaliesEachYear[thiscolumn];
+        if (anIncrement > 0) {
+            let uplev = Array.from({ length: specificSubjects.length }).fill(Infinity);
+            for (let anySubject = 0; anySubject < specificSubjects.length; anySubject++) {
+                if (anySubject === thisSubjectNr) continue;
+                uplev[anySubject] = HistoricalHoursMax[anySubject]/100*DesiredTotInstrucTimeEachYear[thisSchoolYear] - HypotheticalWeeklyPeriods[anySubject][thiscolumn];
+            }
+            console.log(uplev);
+            const { index: index } = findMinValueAndIndex(uplev);
+            HypotheticalWeeklyPeriods[index][thiscolumn] = HypotheticalWeeklyPeriods[index][thiscolumn] - IncrementPeriodsPerClick;
 
-        for (let thisrow = 0; thisrow < NrRows; thisrow++) {
-            let XCell = HypotheticalHours[thisrow][thiscolumn];
-            let ItsShareOfAnomaly = AnomaliesEachYear[thiscolumn] * (XCell / SumOfColumn);
-            Tempo[thisrow] = XCell - ItsShareOfAnomaly;
-        }
-        
-        for (let thisrow = 0; thisrow < NrRows; thisrow++) {
-            if (thisrow === thisSubjectNr && thiscolumn === thisSchoolYear) continue;
-            HypotheticalHours[thisrow][thiscolumn] = Math.round(Tempo[thisrow]);
+        } else if (anIncrement > 0) {
+            let dolev = Array.from({ length: specificSubjects.length }).fill(Infinity);
+            for (let anySubject = 0; anySubject < specificSubjects.length; anySubject++) {
+                if (anySubject === thisSubjectNr) continue;
+                dolev[anySubject] = HypotheticalWeeklyPeriods[anySubject][thiscolumn] - HistoricalHoursMin[anySubject]/100*DesiredTotInstrucTimeEachYear[thisSchoolYear];
+            }
+            console.log(dolev);
+            const { index: index } = findMinValueAndIndex(dolev);
+            HypotheticalWeeklyPeriods[index1][thiscolumn] = HypotheticalWeeklyPeriods[index1][thiscolumn] + IncrementPeriodsPerClick;
         }
     }
     
@@ -183,7 +210,6 @@ function checkLimits(selCell, anIncrement){
         $.notify("This is the minimum hours for this subject", { className: "error", position: "top center" });
         selCell.self.classList.add("lowLim");
         selCell.self.classList.remove("clowLim");
-        return false;
     } else if (newValueOfCellC < HistoricalHoursMin[thisSubjectNr]) {
         selCell.self.classList.add("clowLim");
         selCell.self.classList.remove("lowLim");
@@ -196,7 +222,6 @@ function checkLimits(selCell, anIncrement){
         $.notify("This is the maximum hours for this subject", { className: "error", position: "top center" });
         selCell.self.classList.add("HigLim");
         selCell.self.classList.remove("cHigLim");
-        return false;
     } else if (newValueOfCellC > HistoricalHoursMax[thisSubjectNr]) {
         selCell.self.classList.add("cHigLim");
         selCell.self.classList.remove("HigLim");
@@ -209,7 +234,7 @@ function checkLimits(selCell, anIncrement){
 
 // Function to increment or decrement cell values
 function autoAdjustCell(selCell, anIncrement, mode, outOfRangeMessage) {
-    checkLimits(selCell, anIncrement);
+    if(!checkLimits(selCell, anIncrement)) return;
 
     let thisSchoolYear = selCell.column - 1;
     let thisSubjectNr = selCell.row;
@@ -217,40 +242,42 @@ function autoAdjustCell(selCell, anIncrement, mode, outOfRangeMessage) {
     const wantTotal = DesiredTotInstrucTimeEachYear[thisSchoolYear];
     const oldValueOfCell = selCell.value;
 
-    let specialIncrement = 0;
-    if ((wantTotal - oldValueOfCell - anIncrement) !== 0) {
-        specialIncrement = anIncrement * (wantTotal / (wantTotal - oldValueOfCell - anIncrement));
-    } else {
-        return;
-    }
-
     let temp;
     if (mode === "With Compensation") {
-        // temp = oldValueOfCell + specialIncrement;
         temp = oldValueOfCell + anIncrement;
         if (temp > 0 && temp < wantTotal) {
             selCell.value = temp;
             selCell.self.innerText = temp;
-            HypotheticalWeeklyPeriods[selCell.row][selCell.column - 1] = Math.round(temp);
+            HypotheticalWeeklyPeriods[thisSubjectNr][thisSchoolYear] = Math.round(temp);
         }
     } else {
         temp = oldValueOfCell + anIncrement;
         if (temp > 0 && temp < wantTotal) {
             selCell.value = temp;
             selCell.self.innerText = temp;
-            HypotheticalWeeklyPeriods[selCell.row][selCell.column - 1] = Math.round(temp);
+            HypotheticalWeeklyPeriods[thisSubjectNr][thisSchoolYear] = Math.round(temp);
         }
     }
 
-    // const normFactor = wantTotal / (wantTotal + specialIncrement);
-    const normFactor = wantTotal / (wantTotal + anIncrement);
     if (mode === "With Compensation") {
-        for (let anySubject = 0; anySubject < totalSchoolSubjects; anySubject++) {
-            temp = normFactor * HypotheticalWeeklyPeriods[anySubject][thisSchoolYear];
-            if (temp > 0 && temp < wantTotal) {
+        if (anIncrement > 0) {
+            let uplev = Array.from({ length: specificSubjects.length }).fill(Infinity);
+            for (let anySubject = 0; anySubject < specificSubjects.length; anySubject++) {
                 if(anySubject === thisSubjectNr) continue;
-                HypotheticalWeeklyPeriods[anySubject][thisSchoolYear] = Math.round(temp);
+                uplev[anySubject] = HistoricalHoursMax[anySubject]/100*DesiredTotInstrucTimeEachYear[thisSchoolYear] - HypotheticalWeeklyPeriods[anySubject][thisSchoolYear];
             }
+            console.log(uplev);
+            const { _, index } = findMinValueAndIndex(uplev);
+            HypotheticalWeeklyPeriods[index][thisSchoolYear] = HypotheticalWeeklyPeriods[index][thisSchoolYear] - IncrementPeriodsPerClick;
+        } else {
+            let dolev = Array.from({ length: specificSubjects.length }).fill(Infinity);
+            for (let anySubject = 0; anySubject < specificSubjects.length; anySubject++) {
+                if(anySubject === thisSubjectNr) continue;
+                dolev[anySubject] = HypotheticalWeeklyPeriods[anySubject][thisSchoolYear] - HistoricalHoursMin[anySubject]/100*DesiredTotInstrucTimeEachYear[thisSchoolYear];
+            }
+            console.log(dolev);
+            const { _, index } = findMinValueAndIndex(dolev);
+            HypotheticalWeeklyPeriods[index][thisSchoolYear] =  HypotheticalWeeklyPeriods[index][thisSchoolYear] + IncrementPeriodsPerClick;
         }
     }
 
@@ -443,8 +470,6 @@ function addSub() {
     tableBody.appendChild(newRow);
     totalSchoolSubjects += 1;
     HypotheticalHours.push(valuesH);
-    console.log("FormData[DataLen-2].value"+FormData[DataLen-2].value);
-    console.log("FormData[DataLen-3].value"+FormData[DataLen-3].value);
     HistoricalHoursMax.push(parseInt(FormData[DataLen-2].value));
     HistoricalHoursMin.push(parseInt(FormData[DataLen-3].value));
     FormData.reset();

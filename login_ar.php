@@ -215,7 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 							</form>
 
 							<span>
-																											<a href="http://pre-release.test/frontend/login.php"><img title="English" width="34px" height="38px"
+																											<a href="login.php"><img title="English" width="34px" height="38px"
 												src="https://www.gaserc.org/admin_assets/assets/media/flags/260-united-kingdom.svg" alt="english"></a>
 																								</span>
 							<div

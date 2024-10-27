@@ -766,7 +766,7 @@ $conn->close();
                                     </button>
                                 </form>
                                 <div>
-                                    <a href="http://pre-release.test/frontend/dashboard79_ar.php">
+                                    <a href="dashboard79_ar.php">
                                         <img title="العربية" width="34px" height="38px" src="https://www.gaserc.org/admin_assets/assets/media/flags/107-kwait.svg" alt="arabic">
                                     </a>
                                 </div>
@@ -1829,6 +1829,15 @@ No. 12580 - Shamiya 71656
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
         <script>
+            let specificSubjects = [
+                'Arabic Language',
+                'English Language',
+                'Mathematics',
+                'Science',
+                'Social Studies',
+                'Islamic Education',
+                'Physical Education'
+            ];
             function extendArray(arr, desiredLength, fillValue = 0) {
                 if (arr.length < desiredLength) {
                     arr.length = desiredLength;

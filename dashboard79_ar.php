@@ -788,7 +788,7 @@ $conn->close();
 							</form>
 
 							<span>
-																											<a href="http://pre-release.test/frontend/dashboard79.php"><img title="English" width="34px" height="38px"
+																											<a href="dashboard79.php"><img title="English" width="34px" height="38px"
 												src="https://www.gaserc.org/admin_assets/assets/media/flags/260-united-kingdom.svg" alt="english"></a>
 																								</span>
 							<div
@@ -1828,6 +1828,15 @@ $conn->close();
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
         <script>
+            let specificSubjects = [
+                'Arabic Language',
+                'English Language',
+                'Mathematics',
+                'Science',
+                'Social Studies',
+                'Islamic Education',
+                'Physical Education'
+            ];
             function extendArray(arr, desiredLength, fillValue = 0) {
                 if (arr.length < desiredLength) {
                     arr.length = desiredLength;

@@ -196,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </button>
                                 </form>
                                 <div>
-                                    <a href="http://pre-release.test/frontend/login_ar.php">
+                                    <a href="login_ar.php">
                                         <img title="العربية" width="34px" height="38px" src="https://www.gaserc.org/admin_assets/assets/media/flags/107-kwait.svg" alt="arabic">
                                     </a>
                                 </div>
