@@ -10,7 +10,8 @@ if (empty($_SESSION['ms_csrf_token_2'])) {
 if (!isset($_SESSION['userID']) || 
     !isset($_SESSION['job']) || 
     !isset($_SESSION['email'])) {
-    header("Location: login.php");
+    $lang = ($_SESSION['lang'] == 'en') ? '' : '_ar';
+    header("Location: login{$lang}.php");
     exit();
 }
 

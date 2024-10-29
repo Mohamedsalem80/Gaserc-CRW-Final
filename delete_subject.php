@@ -20,9 +20,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $subjectName = $_POST['subjectName'];
 
     // Fetch the Subject ID based on the subject name
-    $fetchQuery = "SELECT SubjectID FROM subjects WHERE Subject = ?";
+    $fetchQuery = "SELECT SubjectID FROM subjects WHERE Subject = ? OR Subject_ar = ?";
     $stmtFetch = $conn->prepare($fetchQuery);
-    $stmtFetch->bind_param("s", $subjectName);
+    $stmtFetch->bind_param("ss", $subjectName, $subjectName);
     $stmtFetch->execute();
     $stmtFetch->bind_result($subjectID);
     $stmtFetch->fetch();

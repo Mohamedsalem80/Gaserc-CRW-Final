@@ -11,10 +11,11 @@ if (empty($_SESSION['ms_csrf_token'])) {
 }
 
 // Check if the user is already logged in
-if (isset($_SESSION['user_email'])) {
+if (isset($_SESSION['email'])) {
     $lang = ($_SESSION['lang'] == 'en') ? '' : '_ar';
 	if (!isset($_SESSION['stage'])) {
 		header("Location: followup{$lang}.php");
+		exit();
 	}
     $dashboard = ($_SESSION['stage'] == 1) ? 'dashboard16' : 'dashboard79';
     header("Location: {$dashboard}{$lang}.php");
@@ -67,12 +68,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo $hashedPassword;
                 if ($password == $hashedPassword) {
                     // Set session variables upon successful login
-                    $_SESSION['user_email'] = $email;
+                    $_SESSION['email'] = $email;
                     $_SESSION['userID'] = $userID;
                     $_SESSION['job'] = $jobID;
 
                     // Redirect the user to the dashboard
-                    header("Location: followup.php");
+                    header("Location: followup_ar.php");
                     exit();
                 } else {
                     $error = "كلمة السر غير صحيحة";
@@ -581,10 +582,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="row news-row text-center">
                         <form method="POST" action="login_ar.php">
                             <input type="hidden" name="ms_csrf_token" value="<?php if(isset($_SESSION['ms_csrf_token'])) {echo htmlspecialchars($_SESSION['ms_csrf_token']); } ?>" autocomplete="off">
-                            <input type="email" name="name" placeholder="أدخل بريدك الالكتروني"
+                            <input type="email" name="email" placeholder="أدخل بريدك الالكتروني"
 							onblur="this.placeholder='أدخل بريدك الالكتروني'"
 							onfocus="this.placeholder='أدخل بريدك الالكتروني'" class="news_letter news_letter_width" required>
-                            <input type="password" name="name" placeholder="أدخل كلمة السر"
+                            <input type="password" name="password" placeholder="أدخل كلمة السر"
 							onblur="this.placeholder='أدخل كلمة السر'"
 							onfocus="this.placeholder='أدخل كلمة السر'" class="news_letter news_letter_width" required>
                             <button type="submit" class="news_letter ">ادخل</button>

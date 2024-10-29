@@ -31,7 +31,7 @@ $grades = [
 $minHours = $_POST['minHours'];
 $maxHours = $_POST['maxHours'];
 $avgHours = $_POST['avgHours'];
-
+$yerlyHours = $_SESSION['yearlyHours'];
 $country = $_SESSION['countryID'];
 
 // Insert into the Subjects table
@@ -49,7 +49,7 @@ if ($stmtSubject->execute()) {
     // Loop through grades 1 to 9
     foreach ($grades as $gradeID => $annualHours) {
         // Define the annual hours variable to bind by reference
-        $annualHoursRef = $annualHours; // Create a separate variable for binding
+        $annualHoursRef = $annualHours * $yerlyHours; // Create a separate variable for binding
         $stmtTeachingHours->bind_param("iiii", $country, $subjectID, $gradeID, $annualHoursRef);
         
         // Execute TeachingHours insert

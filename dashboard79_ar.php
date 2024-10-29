@@ -218,6 +218,13 @@ if ($result->num_rows > 0) {
 }
 
 $conn->close();
+$_SESSION['yearlyHours'] = round($noWeeks * ($minutesPerClass/60));
+$errMsg1 = $_SESSION['lang'] == 'en' ? "Please select a cell inside the inside planning table" : "من فضلك اختر خلية داخل جدول تحت التخطيط";
+$errMsg2 = $_SESSION['lang'] == 'en' ? "This is the minimum hours for this subject" : "هذا هو الحد الأدنى من الساعات لهذه المادة";
+$errMsg3 = $_SESSION['lang'] == 'en' ? "This is the maximum hours for this subject" : "هذا هو الحد الأقصى للساعات لهذه المادة";
+$errMsg4 = $_SESSION['lang'] == 'en' ? "Please select a subject inside the under planning table" : "من فضلك اختر مادة داخل جدول تحت التخطيط";
+$errMsg5 = $_SESSION['lang'] == 'en' ? "Are you sure you want to delete this subject?" : "هل أنت متأكد أنك تريد حذف هذه المادة";
+
 ?>
 
 <!DOCTYPE html>
@@ -710,7 +717,7 @@ $conn->close();
                             
                             <!-- Grades 1-6 in a single row -->
                             <div class="form-group">
-                                <label class="col-form-label">الساعات السنوية للصفوف 1-9:</label>
+                                <label class="col-form-label">عدد الحصص الاسبوعية للصفوف 1-9:</label>
                                 <div class="row">
                                     <div class="col-md-4  mb-1 mb-1">
                                         <input type="text" class="form-control" placeholder="الصف 1" name="grade1">
@@ -1234,7 +1241,7 @@ $conn->close();
                                     </tr>
                                     <tr>
                                         <th>ساعة / سنة</th>
-                                        <td class="numVal" id="incrementPeriodsPerClick"><?php echo $noWeeks * $minutesPerClass; ?></td>
+                                        <td class="numVal" id="incrementPeriodsPerClick"><?php echo round($noWeeks * ($minutesPerClass/60)); ?></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1385,7 +1392,11 @@ $conn->close();
                         <table class="table" id="totalAnomaly">
                             <tbody>
                                 <tr>
-                                    <td style="width: 330px;">التغييرات الكلية</td>
+                                    <td style="width: 330px;">
+                                        التغييرات الكلية
+                                        <br>
+                                        (قد تكون بسبب التقريبات)
+                                    </td>
                                     <td class="numVal">0</td>
                                     <td class="numVal">0</td>
                                     <td class="numVal">0</td>
@@ -1876,6 +1887,13 @@ $conn->close();
                           <?php echo $Grade_9; ?>]; 
             var totals_c = <?php echo $maxHours; ?>;
             var diff = Array.from({ length: totalSchoolSubjects }, () => Array(totalSchoolYears).fill(0));
+
+            var errMsg1 = "<?php echo $errMsg1; ?>";
+            var errMsg2 = "<?php echo $errMsg2; ?>";
+            var errMsg3 = "<?php echo $errMsg3; ?>";
+            var errMsg4 = "<?php echo $errMsg4; ?>";
+            var errMsg5 = "<?php echo $errMsg5; ?>";
+
         </script>
         <script src="./js/extra-script-16.js"></script>
         <script>

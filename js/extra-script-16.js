@@ -195,7 +195,7 @@ function ButtonToNeutraliseAnomalies_Click() {
 
 function checkLimits(selCell, anIncrement){
     if (!SelCellIsInHypothRange(selCell)) {
-        $.notify("Please select a cell inside the under planning table", { className: "error", position: "top center" });
+        $.notify(errMsg1, { className: "error", position: "top center" });
         return false;
     }
     let oldValueOfCell = selCell.value;
@@ -207,7 +207,7 @@ function checkLimits(selCell, anIncrement){
     newValueOfCellC = Math.round(newValueOfCellC / DesiredTotInstrucTimeEachYear[thisSchoolYear]*100);
 
     if (newValueOfCell < HistoricalHoursMin[thisSubjectNr]) {
-        $.notify("This is the minimum hours for this subject", { className: "error", position: "top center" });
+        $.notify(errMsg2, { className: "error", position: "top center" });
         selCell.self.classList.add("lowLim");
         selCell.self.classList.remove("clowLim");
     } else if (newValueOfCellC < HistoricalHoursMin[thisSubjectNr]) {
@@ -219,7 +219,7 @@ function checkLimits(selCell, anIncrement){
     }
 
     if (newValueOfCell > HistoricalHoursMax[thisSubjectNr]) {
-        $.notify("This is the maximum hours for this subject", { className: "error", position: "top center" });
+        $.notify(errMsg3, { className: "error", position: "top center" });
         selCell.self.classList.add("HigLim");
         selCell.self.classList.remove("cHigLim");
     } else if (newValueOfCellC > HistoricalHoursMax[thisSubjectNr]) {
@@ -411,40 +411,17 @@ function removeSub() {
     
     // Check if the selected cell is valid
     if (!SelCellIsInHypothRange(selCell)) {
-        $.notify("Please select a subject inside the under planning table", { className: "error", position: "top center" });
+        $.notify(errMsg4, { className: "error", position: "top center" });
         return;
     }
     
     let sid = selCell.self.innerText.trim(); // Use innerText and trim whitespace
     let theform = document.getElementById("rform");
     document.getElementById("rforminp").value = sid;
-    theform.submit();
-    return;
-    // Get the subject name from the selected cell
-
-    // Confirm with the user before deletion
-    if (confirm("Are you sure you want to delete this subject?")) {
-        // AJAX request to delete the subject
-        $.ajax({
-            url: 'delete_subject.php',
-            type: 'POST',
-            data: fdata,
-            dataType: 'json',
-            success: function(response) {
-                console.log("Response:", response); // Log the response
-                if (response.success) {
-                    alert(response.message);
-                    location.reload(); // Reload the page if deletion is successful
-                } else {
-                    alert(response.message); // Show error message from the server
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error("XHR Response:", xhr.responseText); // Log the raw response text for debugging
-                alert("An error occurred: " + error); // Show alert with error message
-            }
-        });
+    if (confirm(errMsg5)) {
+        theform.submit();
     }
+    return;
 }
 
 function addSub() {

@@ -14,6 +14,7 @@ if (isset($_SESSION['email'])) {
     $lang = ($_SESSION['lang'] == 'en') ? '' : '_ar';
 	if (!isset($_SESSION['stage'])) {
 		header("Location: followup{$lang}.php");
+        exit();
 	}
     $dashboard = ($_SESSION['stage'] == 1) ? 'dashboard16' : 'dashboard79';
     header("Location: {$dashboard}{$lang}.php");

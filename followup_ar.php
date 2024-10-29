@@ -10,7 +10,8 @@ if (empty($_SESSION['ms_csrf_token_2'])) {
 if (!isset($_SESSION['userID']) || 
     !isset($_SESSION['job']) || 
     !isset($_SESSION['email'])) {
-    header("Location: login.php");
+    $lang = ($_SESSION['lang'] == 'en') ? '' : '_ar';
+    header("Location: login{$lang}.php");
     exit();
 }
 
@@ -836,7 +837,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <!-- Step 2 -->
                         <div class="col-centered center col-9 col-md-9 col-sm-9 form-step" data-step="3">
                             <div class="col-centered center col-9 col-md-9 col-sm-9 h4 p-2">
-                                اهتر المرحلة
+                                اختر المرحلة
                             </div>
                             <img src="./images/undraw_Small_town_re_7mcn.png" alt="" class="prog-img">
                             <select class="custom-select col-centered center col-9 col-md-9 col-sm-9" name="stage" id="stage">
