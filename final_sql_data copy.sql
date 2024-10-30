@@ -71,7 +71,9 @@ CREATE TABLE users (
     FOREIGN KEY (jobID) REFERENCES jobs(jobID) ON DELETE SET NULL
 );
 
-
+-- Insert User
+INSERT INTO users (user_email, password, jobID) VALUES
+("mohamed@gaserc.edu", "1a3de3468f778eb7960e8bb5c44765eb1d89c473be341e16b8992fbc877c8ded", 5);
 
 -- Insert jobs
 INSERT INTO jobs (job, job_ar) VALUES
