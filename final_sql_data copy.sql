@@ -72,7 +72,7 @@ CREATE TABLE users (
 );
 
 -- Insert jobs
-INSERT INTO jobs (job, job_ar) VALUES
+INSERT INTO jobs (jobID, job, job_ar) VALUES
     (1, 'Teacher', 'مدرس'),
     (2, 'School Principal', 'مدير مدرسة'),
     (3, 'Subject Supervisor', 'موجه المادة'),
