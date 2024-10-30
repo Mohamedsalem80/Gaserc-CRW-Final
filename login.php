@@ -36,9 +36,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Validate email and password
         if (filter_var($email, FILTER_VALIDATE_EMAIL) && !empty($password)) {
             // Database connection parameters
-            $servername = "localhost";
+            $servername = "localhost"; // ip-172-31-42-139
             $username = "root";
-            $dbpassword = "";
+            $dbpassword = "m1o2h3@45";
             $dbname = "gaserc";
 
             // Connect to the database

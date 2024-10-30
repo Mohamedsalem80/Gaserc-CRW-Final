@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Database connection parameters
             $servername = "localhost";
             $username = "root";
-            $dbpassword = "";
+            $dbpassword = "m1o2h3@45";
             $dbname = "gaserc";
 
             // Connect to the database
